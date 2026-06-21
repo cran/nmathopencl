@@ -1,0 +1,26 @@
+if (!nmathopencl_has_opencl() || identical(Sys.getenv("NOT_CRAN"), "true")) {
+  gammafn_opencl(x = 2.5, fallback = FALSE, verbose = TRUE)
+  lgammafn_opencl(x = 2.5, fallback = FALSE, verbose = TRUE)
+  digamma_opencl(x = 2.5, fallback = FALSE, verbose = TRUE)
+  trigamma_opencl(x = 2.5, fallback = FALSE, verbose = TRUE)
+  tetragamma_opencl(x = 2.5, fallback = FALSE, verbose = TRUE)
+  pentagamma_opencl(x = 2.5, fallback = FALSE, verbose = TRUE)
+  psigamma_opencl(x = 2.5, deriv = 1, fallback = FALSE, verbose = TRUE)
+
+  beta_opencl(a = 2.5, b = 3.0, fallback = FALSE, verbose = TRUE)
+  lbeta_opencl(a = 2.5, b = 3.0, fallback = FALSE, verbose = TRUE)
+  choose_opencl(n = 10, k = 4, fallback = FALSE, verbose = TRUE)
+  lchoose_opencl(n = 10, k = 4, fallback = FALSE, verbose = TRUE)
+} else {
+  base::gamma(2.5)
+  base::lgamma(2.5)
+  base::digamma(2.5)
+  base::trigamma(2.5)
+  base::psigamma(2.5, deriv = 2L)
+  base::psigamma(2.5, deriv = 3L)
+  base::psigamma(2.5, deriv = 1L)
+  base::beta(2.5, 3.0)
+  base::lbeta(2.5, 3.0)
+  base::choose(10, 4)
+  base::lchoose(10, 4)
+}

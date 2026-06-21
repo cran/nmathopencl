@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-06-11" />
+
+<title>Chapter 06: Integrating Kernel Wrappers into Your Codebase</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter 06: Integrating Kernel Wrappers
+into Your Codebase</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-06-11</h4>
+
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>Chapter 05 described the internal structure of a kernel wrapper: how
+inputs are converted, how the runner is dispatched, and how results are
+converted back. This chapter takes a step back and looks at how kernel
+wrappers fit into the broader codebase of a package.</p>
+<p>Two questions arise immediately:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>What happens when OpenCL is not available?</strong> Every
+kernel wrapper must have a CPU path. A wrapper that simply returns zeros
+is safe but unhelpful; most real wrappers need to fall back to a correct
+CPU computation.</p></li>
+<li><p><strong>How is the wrapper exposed?</strong> Some kernel wrappers
+have a direct interface into R (callable from R code). Others are purely
+internal C++ components, called by other C++ functions that hold the
+R-facing API. The choice depends on whether the computation has a
+natural direct R use.</p></li>
+</ol>
+<p><code>nmathopencl</code> contains examples of both patterns. The
+distribution-function wrappers (<code>dnorm_opencl</code>,
+<code>pnorm_opencl</code>, etc.) are exported R functions with rich CPU
+fallback logic. The GLM gradient wrapper (<code>f2_f3_opencl</code>) is
+a purely internal C++ component, called by a C++ dispatcher that also
+has a separate CPU implementation (<code>f2_f3_non_opencl</code>). Both
+patterns are explored in detail below.</p>
+<hr />
+</div>
+<div id="the-two-integration-patterns" class="section level2">
+<h2>The two integration patterns</h2>
+<div id="pattern-1-wrapper-with-a-direct-r-interface" class="section level3">
+<h3>Pattern 1: wrapper with a direct R interface</h3>
+<p>In this pattern the kernel wrapper (or a thin R function that calls
+it) is exported and callable directly from R. The CPU fallback is the
+equivalent computation using standard R or C functions — in
+<code>nmathopencl</code>’s case, the <code>stats::</code> distribution
+functions.</p>
+<pre><code>R caller
+  │
+  ▼
+R wrapper function  (exported, input validation, recycling)
+  │  if inputs are non-finite, sd == 0, etc. → fallback_full()
+  │
+  ▼
+.opencl_try_or_fallback()
+  │  if !nmathopencl_has_opencl()           → fallback_expr()  (CPU path)
+  │  if OpenCL call succeeds    → return GPU result
+  │  if OpenCL call fails
+  │    and fallback = TRUE      → fallback_expr()  (CPU path)
+  │    and fallback = FALSE     → propagate error
+  ▼
+C++ kernel wrapper  (internal, not exported)
+  │  #ifdef USE_OPENCL + nmathopencl_has_opencl() guard
+  │  type conversion + program assembly + runner dispatch
+  ▼
+GPU result</code></pre>
+<p>The fallback can be triggered at two separate levels:</p>
+<ul>
+<li><p><strong>R level</strong> (before the C++ call): when input
+validation detects a condition the GPU path cannot handle
+(e.g. <code>sd == 0</code>, non-finite values).
+<code>fallback_full()</code> calls
+<code>stats::dnorm(x, mean, sd, log = log)</code> directly.</p></li>
+<li><p><strong>C++ / runtime level</strong>:
+<code>.opencl_try_or_fallback()</code> checks
+<code>nmathopencl_has_opencl()</code> before attempting the GPU path. If
+OpenCL is not available it calls <code>fallback_expr()</code> without
+ever touching the C++ kernel wrapper. If a GPU call throws an exception
+and <code>fallback = TRUE</code>, it catches the error and calls
+<code>fallback_expr()</code>.</p></li>
+</ul>
+</div>
+<div id="pattern-2-wrapper-as-an-internal-c-component" class="section level3">
+<h3>Pattern 2: wrapper as an internal C++ component</h3>
+<p>In this pattern the kernel wrapper has no direct R interface. It is
+called from within a C++ dispatcher function alongside a CPU
+counterpart. The R interface belongs to a higher-level function that
+selects between the two based on a <code>use_opencl</code> flag passed
+in by the caller.</p>
+<pre><code>R caller
+  │
+  ▼
+Exported R function  (e.g. Ex_EnvelopeEval)
+  │  validates inputs, passes use_opencl flag
+  ▼
+.EnvelopeEval_cpp()   (internal R → C++ bridge, [[Rcpp::export]])
+  ▼
+EnvelopeEval_cpp()    (C++ dispatcher)
+  │  if use_opencl &amp;&amp; nmathopencl_has_opencl()
+  │    → f2_f3_opencl()     (OpenCL kernel wrapper)
+  │  else
+  │    → f2_f3_non_opencl() (pure C++ CPU implementation)
+  ▼
+Result (qf, grad) returned regardless of path taken</code></pre>
+<p>The two implementations — <code>f2_f3_opencl</code> and
+<code>f2_f3_non_opencl</code> — share the same function signature and
+return the same data structure. The caller cannot tell from the return
+value which path was taken.</p>
+<hr />
+</div>
+</div>
+<div id="pattern-1-in-detail-dnorm_opencl" class="section level2">
+<h2>Pattern 1 in detail: <code>dnorm_opencl</code></h2>
+<div id="the-r-wrapper" class="section level3">
+<h3>The R wrapper</h3>
+<p><code>dnorm_opencl</code> in <code>R/normal_opencl.R</code> is the
+user-facing function. It mirrors the interface of
+<code>stats::dnorm</code> and adds <code>opencl_parallel</code>,
+<code>fallback</code>, and <code>verbose</code> arguments.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># R/normal_opencl.R  (simplified)</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&#39; @export</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a>dnorm_opencl <span class="ot">&lt;-</span> <span class="cf">function</span>(x, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>, <span class="at">log =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>                         <span class="at">opencl_parallel =</span> <span class="cn">NA</span>, <span class="at">fallback =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a>                         <span class="at">verbose =</span> <span class="cn">FALSE</span>) {</span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="co"># ── Input validation ──────────────────────────────────────────────────────</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  <span class="co"># These checks mirror stats::dnorm behavior.</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.numeric</span>(x))    <span class="fu">stop</span>(<span class="st">&quot;`x` must be numeric.&quot;</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.numeric</span>(mean)) <span class="fu">stop</span>(<span class="st">&quot;`mean` must be numeric.&quot;</span>)</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.numeric</span>(sd))   <span class="fu">stop</span>(<span class="st">&quot;`sd` must be numeric.&quot;</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">length</span>(x) <span class="sc">==</span> <span class="dv">0</span><span class="dt">L</span>)   <span class="fu">return</span>(<span class="fu">numeric</span>(<span class="dv">0</span>))</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>  <span class="co"># ── Recycling (like stats::dnorm) ─────────────────────────────────────────</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>  len  <span class="ot">&lt;-</span> <span class="fu">max</span>(<span class="fu">length</span>(x), <span class="fu">length</span>(mean), <span class="fu">length</span>(sd))</span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>  xv   <span class="ot">&lt;-</span> <span class="fu">rep_len</span>(<span class="fu">as.double</span>(x),    len)</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>  mv   <span class="ot">&lt;-</span> <span class="fu">rep_len</span>(<span class="fu">as.double</span>(mean), len)</span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>  sv   <span class="ot">&lt;-</span> <span class="fu">rep_len</span>(<span class="fu">as.double</span>(sd),   len)</span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a>  logv <span class="ot">&lt;-</span> <span class="fu">rep_len</span>(log,             len)</span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a>  <span class="co"># ── R-level fallback function ─────────────────────────────────────────────</span></span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a>  <span class="co"># Called when inputs contain conditions the GPU path cannot handle,</span></span>
+<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a>  <span class="co"># or when OpenCL is unavailable and fallback = TRUE.</span></span>
+<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a>  fallback_full <span class="ot">&lt;-</span> <span class="cf">function</span>() {</span>
+<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a>    stats<span class="sc">::</span><span class="fu">dnorm</span>(x, <span class="at">mean =</span> mean, <span class="at">sd =</span> sd, <span class="at">log =</span> log)</span>
+<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a>  }</span>
+<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a></span>
+<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a>  <span class="co"># ── R-level conditions that force the CPU path ────────────────────────────</span></span>
+<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">any</span>(<span class="sc">!</span><span class="fu">is.finite</span>(xv) <span class="sc">|</span> <span class="sc">!</span><span class="fu">is.finite</span>(mv) <span class="sc">|</span> <span class="sc">!</span><span class="fu">is.finite</span>(sv))) {</span>
+<span id="cb3-31"><a href="#cb3-31" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">fallback_full</span>())   <span class="co"># stats::dnorm handles NaN, Inf, NA</span></span>
+<span id="cb3-32"><a href="#cb3-32" tabindex="-1"></a>  }</span>
+<span id="cb3-33"><a href="#cb3-33" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">any</span>(sv <span class="sc">&lt;</span> <span class="dv">0</span>)) {</span>
+<span id="cb3-34"><a href="#cb3-34" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">&quot;`sd` must be non-negative.&quot;</span>, <span class="at">call. =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-35"><a href="#cb3-35" tabindex="-1"></a>  }</span>
+<span id="cb3-36"><a href="#cb3-36" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">any</span>(sv <span class="sc">==</span> <span class="dv">0</span>)) {</span>
+<span id="cb3-37"><a href="#cb3-37" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">fallback_full</span>())   <span class="co"># degenerate case; stats::dnorm handles it</span></span>
+<span id="cb3-38"><a href="#cb3-38" tabindex="-1"></a>  }</span>
+<span id="cb3-39"><a href="#cb3-39" tabindex="-1"></a></span>
+<span id="cb3-40"><a href="#cb3-40" tabindex="-1"></a>  <span class="co"># ── Dispatch: try GPU, fall back to CPU on failure if fallback = TRUE ─────</span></span>
+<span id="cb3-41"><a href="#cb3-41" tabindex="-1"></a>  log_int <span class="ot">&lt;-</span> <span class="fu">as.integer</span>(logv)</span>
+<span id="cb3-42"><a href="#cb3-42" tabindex="-1"></a>  opc     <span class="ot">&lt;-</span> <span class="fu">.encode_opencl_parallel</span>(opencl_parallel)</span>
+<span id="cb3-43"><a href="#cb3-43" tabindex="-1"></a></span>
+<span id="cb3-44"><a href="#cb3-44" tabindex="-1"></a>  <span class="fu">.opencl_try_or_fallback</span>(</span>
+<span id="cb3-45"><a href="#cb3-45" tabindex="-1"></a>    <span class="at">opencl_expr  =</span> <span class="cf">function</span>() <span class="fu">.dnorm_opencl</span>(xv, mv, sv, log_int, opc, verbose),</span>
+<span id="cb3-46"><a href="#cb3-46" tabindex="-1"></a>    <span class="at">fallback_expr =</span> fallback_full,</span>
+<span id="cb3-47"><a href="#cb3-47" tabindex="-1"></a>    <span class="at">fallback      =</span> fallback,</span>
+<span id="cb3-48"><a href="#cb3-48" tabindex="-1"></a>    <span class="at">verbose       =</span> verbose,</span>
+<span id="cb3-49"><a href="#cb3-49" tabindex="-1"></a>    <span class="at">fn_name       =</span> <span class="st">&quot;dnorm_opencl&quot;</span></span>
+<span id="cb3-50"><a href="#cb3-50" tabindex="-1"></a>  )</span>
+<span id="cb3-51"><a href="#cb3-51" tabindex="-1"></a>}</span></code></pre></div>
+<p><code>.dnorm_opencl</code> (dot-prefixed) is the internal
+Rcpp-exported symbol for the C++ kernel wrapper. It is not part of the
+public API; it exists only to make the C++ function callable from R.</p>
+</div>
+<div id="the-.opencl_try_or_fallback-helper" class="section level3">
+<h3>The <code>.opencl_try_or_fallback</code> helper</h3>
+<p>This helper encapsulates the runtime dispatch logic that every
+Pattern 1 wrapper shares:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># R/opencl_linkage_utils.R</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>.opencl_try_or_fallback <span class="ot">&lt;-</span> <span class="cf">function</span>(opencl_expr, fallback_expr,</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>                                    fallback, verbose, fn_name) {</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">nmathopencl_has_opencl</span>()) {</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>    <span class="co"># OpenCL not available in this build or session — go straight to CPU.</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    <span class="cf">if</span> (verbose)</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>      <span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;[%s] OpenCL unavailable; using CPU fallback.&quot;</span>, fn_name))</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>    <span class="fu">return</span>(<span class="fu">fallback_expr</span>())</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  }</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  <span class="co"># OpenCL available: try the GPU path.</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>  out <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>(<span class="fu">opencl_expr</span>(), <span class="at">error =</span> <span class="cf">function</span>(e) e)</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">inherits</span>(out, <span class="st">&quot;error&quot;</span>)) {</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>    <span class="cf">if</span> (fallback) {</span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>      <span class="co"># GPU call failed and the caller requested a fallback.</span></span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>      <span class="cf">if</span> (verbose) {</span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>        <span class="fu">message</span>(<span class="fu">sprintf</span>(<span class="st">&quot;[%s] OpenCL call failed; using CPU fallback.&quot;</span>, fn_name))</span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a>        <span class="fu">message</span>(out<span class="sc">$</span>message)</span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a>      }</span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a>      <span class="fu">return</span>(<span class="fu">fallback_expr</span>())</span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a>    }</span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a>    <span class="fu">stop</span>(out<span class="sc">$</span>message, <span class="at">call. =</span> <span class="cn">FALSE</span>)  <span class="co"># no fallback requested — propagate error</span></span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a>  }</span>
+<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a></span>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a>  out  <span class="co"># GPU call succeeded</span></span>
+<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a>}</span></code></pre></div>
+<p>The design makes the fallback behavior explicit and controllable:</p>
+<ul>
+<li><code>fallback = FALSE</code> (default): if the GPU call fails, the
+error propagates to the caller. The caller sees an actual error rather
+than silently receiving CPU results.</li>
+<li><code>fallback = TRUE</code>: if the GPU call fails, the CPU path is
+used transparently. Useful in batch workflows where any result is better
+than an error.</li>
+</ul>
+</div>
+<div id="the-c-kernel-wrapper" class="section level3">
+<h3>The C++ kernel wrapper</h3>
+<p>The C++ kernel wrapper <code>.dnorm_opencl</code> is exported to R
+via <code>// [[Rcpp::export(name = &quot;.dnorm_opencl&quot;)]]</code>. It is the
+minimal C++ entry point: it converts inputs, runs the GPU path if
+available, and returns zeros if not.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co">// src/kernel_wrappers.cpp  (within nmathopencl namespace)</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">// [[Rcpp::export(name = &quot;.dnorm_opencl&quot;)]]</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>Rcpp<span class="op">::</span>NumericVector dnorm_opencl<span class="op">(</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>    <span class="at">const</span> Rcpp<span class="op">::</span>NumericVector<span class="op">&amp;</span> x<span class="op">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>    <span class="at">const</span> Rcpp<span class="op">::</span>NumericVector<span class="op">&amp;</span> mean<span class="op">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>    <span class="at">const</span> Rcpp<span class="op">::</span>NumericVector<span class="op">&amp;</span> sd<span class="op">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>    <span class="at">const</span> Rcpp<span class="op">::</span>IntegerVector<span class="op">&amp;</span> give_log<span class="op">,</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>    <span class="dt">int</span>                        opencl_parallel_code<span class="op">,</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>    <span class="dt">bool</span>                       verbose</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>  <span class="at">const</span> <span class="dt">int</span> len <span class="op">=</span> x<span class="op">.</span>size<span class="op">();</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>  Rcpp<span class="op">::</span>NumericVector out<span class="op">(</span>len<span class="op">);</span>   <span class="co">// zero-initialized</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="pp">#ifdef USE_OPENCL</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>  <span class="cf">if</span> <span class="op">(!</span>nmathopencl_has_opencl<span class="op">()</span> <span class="op">||</span> len <span class="op">==</span> <span class="dv">0</span><span class="op">)</span> <span class="cf">return</span> out<span class="op">;</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a>  <span class="cf">try</span> <span class="op">{</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a>    d_givelog_ndrange_kernel_fill<span class="op">(</span></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>        <span class="st">&quot;src/dnorm_kernel.cl&quot;</span><span class="op">,</span> <span class="st">&quot;dnorm_kernel&quot;</span><span class="op">,</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a>        len<span class="op">,</span> <span class="op">{&amp;</span>x<span class="op">,</span> <span class="op">&amp;</span>mean<span class="op">,</span> <span class="op">&amp;</span>sd<span class="op">},</span> give_log<span class="op">,</span> out<span class="op">,</span> verbose<span class="op">);</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a>  <span class="op">}</span> <span class="cf">catch</span> <span class="op">(</span><span class="at">const</span> <span class="bu">std::</span>exception<span class="op">&amp;</span> e<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>verbose<span class="op">)</span> Rcpp<span class="op">::</span>Rcout <span class="op">&lt;&lt;</span> e<span class="op">.</span>what<span class="op">()</span> <span class="op">&lt;&lt;</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span><span class="op">;</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a>    <span class="cf">throw</span><span class="op">;</span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="pp">#endif</span></span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a></span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a>  <span class="cf">return</span> out<span class="op">;</span></span>
+<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Note that the C++ wrapper itself returns zeros when
+<code>!nmathopencl_has_opencl()</code>. It does <strong>not</strong>
+call <code>stats::dnorm</code>. The R wrapper is responsible for the
+fallback to <code>stats::dnorm</code>; the C++ wrapper simply reports
+“no GPU result” via zeros. This keeps the C++ layer free of any R
+evaluation machinery.</p>
+<hr />
+</div>
+</div>
+<div id="pattern-2-in-detail-f2_f3_opencl" class="section level2">
+<h2>Pattern 2 in detail: <code>f2_f3_opencl</code></h2>
+<div id="the-exported-r-function" class="section level3">
+<h3>The exported R function</h3>
+<p><code>Ex_EnvelopeEval</code> (in <code>R/ex_glmbayes.R</code>) is the
+user-facing function. It accepts a <code>use_opencl</code> flag and
+delegates entirely to the C++ dispatcher:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># R/ex_glmbayes.R</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&#39; @export</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>Ex_EnvelopeEval <span class="ot">&lt;-</span> <span class="cf">function</span>(G4, y, x, mu, P, alpha, wt,</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>                            family, link,</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>                            <span class="at">use_opencl =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>                            <span class="at">verbose    =</span> <span class="cn">FALSE</span>) {</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="co"># Input validation (matrix/vector type checks) ...</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>  <span class="fu">.EnvelopeEval_cpp</span>(G4, y, x, mu, P, alpha, wt,</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a>                    family, link, use_opencl, verbose)</span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>}</span></code></pre></div>
+<p>There is no R-level fallback function here. The fallback is handled
+entirely inside the C++ dispatcher.</p>
+</div>
+<div id="the-c-dispatcher" class="section level3">
+<h3>The C++ dispatcher</h3>
+<p><code>EnvelopeEval_cpp</code> (inside <code>src/</code>) receives
+<code>use_opencl</code> and decides which C++ implementation to
+call:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co">// src/ (conceptual structure — details in actual source)</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>Rcpp<span class="op">::</span>List EnvelopeEval_cpp<span class="op">(</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericMatrix G4<span class="op">,</span> Rcpp<span class="op">::</span>NumericVector y<span class="op">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericMatrix x<span class="op">,</span>  Rcpp<span class="op">::</span>NumericMatrix mu<span class="op">,</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericMatrix P<span class="op">,</span>  Rcpp<span class="op">::</span>NumericVector alpha<span class="op">,</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericVector wt<span class="op">,</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>    <span class="bu">std::</span>string family<span class="op">,</span> <span class="bu">std::</span>string link<span class="op">,</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>    <span class="dt">bool</span> use_opencl<span class="op">,</span> <span class="dt">bool</span> verbose</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="co">// Prepare shared inputs (common to both paths) ...</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>  <span class="cf">if</span> <span class="op">(</span>use_opencl <span class="op">&amp;&amp;</span> nmathopencl_has_opencl<span class="op">())</span> <span class="op">{</span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>    <span class="co">// GPU path: call the OpenCL kernel wrapper</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>    <span class="cf">return</span> ex_glmbayes<span class="op">::</span>opencl<span class="op">::</span>f2_f3_opencl<span class="op">(</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a>        family<span class="op">,</span> link<span class="op">,</span> b<span class="op">,</span> y<span class="op">,</span> x<span class="op">,</span> mu<span class="op">,</span> P<span class="op">,</span> alpha<span class="op">,</span> wt<span class="op">,</span> verbose<span class="op">);</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>  <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a>    <span class="co">// CPU path: call the pure C++ implementation</span></span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a>    <span class="cf">return</span> ex_glmbayes<span class="op">::</span>f2_f3_non_opencl<span class="op">(</span></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a>        family<span class="op">,</span> link<span class="op">,</span> b<span class="op">,</span> y<span class="op">,</span> x<span class="op">,</span> mu<span class="op">,</span> P<span class="op">,</span> alpha<span class="op">,</span> wt<span class="op">);</span></span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Both <code>f2_f3_opencl</code> and <code>f2_f3_non_opencl</code>
+return a <code>Rcpp::List</code> with identical structure:
+<code>list(qf = numeric(m1), grad = matrix(m1, l2))</code>. The
+dispatcher’s caller cannot tell from the return value which path was
+used.</p>
+</div>
+<div id="why-a-dedicated-cpu-implementation" class="section level3">
+<h3>Why a dedicated CPU implementation?</h3>
+<p>For Pattern 1 (distribution functions), the CPU fallback is an
+existing well-tested function from <code>stats::</code>. No separate CPU
+implementation is needed.</p>
+<p>For the GLM gradient computation, no equivalent off-the-shelf CPU
+function exists. <code>f2_f3_non_opencl</code> is a pure C++
+implementation of the same mathematical computation, written without any
+OpenCL dependency. It compiles on every platform and produces
+bit-for-bit equivalent results to the GPU path (within double-precision
+rounding).</p>
+<p>Having both implementations under explicit control also makes it
+possible to benchmark them directly: <code>use_opencl = FALSE</code>
+forces the CPU path even on a GPU-equipped machine.</p>
+<hr />
+</div>
+</div>
+<div id="choosing-between-the-two-patterns" class="section level2">
+<h2>Choosing between the two patterns</h2>
+<p>The choice between Pattern 1 and Pattern 2 comes down to whether
+there is a natural existing CPU computation to fall back to.</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Criterion</th>
+<th>Pattern 1 (R interface + R fallback)</th>
+<th>Pattern 2 (C++ dispatch + CPU implementation)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Existing CPU function available?</td>
+<td>Yes (<code>stats::</code>, <code>base::</code>, etc.)</td>
+<td>No; need to write the CPU implementation</td>
+</tr>
+<tr class="even">
+<td>Does the computation have a direct R use?</td>
+<td>Yes (called directly from R)</td>
+<td>Often not (called from a C++ simulation loop)</td>
+</tr>
+<tr class="odd">
+<td>Where does fallback live?</td>
+<td>R level (<code>fallback_full()</code>) + runtime
+(<code>nmathopencl_has_opencl()</code>)</td>
+<td>C++ level
+(<code>use_opencl &amp;&amp; nmathopencl_has_opencl()</code>)</td>
+</tr>
+<tr class="even">
+<td>Caller can request optional fallback?</td>
+<td>Yes (<code>fallback = TRUE/FALSE</code> argument)</td>
+<td>Caller controls via <code>use_opencl</code> flag</td>
+</tr>
+<tr class="odd">
+<td>Wrapper directly R-callable?</td>
+<td>Yes (exported via <code>[[Rcpp::export]]</code>)</td>
+<td>Not necessarily — may be purely internal C++</td>
+</tr>
+</tbody>
+</table>
+<p>Both patterns guarantee that the package compiles and runs correctly
+on any machine. The GPU path is always optional; the CPU path always
+produces a valid (if unaccelerated) result.</p>
+<hr />
+</div>
+<div id="naming-conventions" class="section level2">
+<h2>Naming conventions</h2>
+<p><code>nmathopencl</code> uses a consistent naming scheme to make the
+role of each function clear:</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>dnorm_opencl</code></td>
+<td>Exported R function</td>
+<td>User-facing API; validates inputs; manages fallback</td>
+</tr>
+<tr class="even">
+<td><code>.dnorm_opencl</code></td>
+<td>Internal R → C++ bridge</td>
+<td>Rcpp export; positional R → C++ call only</td>
+</tr>
+<tr class="odd">
+<td><code>nmathopencl::dnorm_opencl</code></td>
+<td>C++ kernel wrapper</td>
+<td><code>#ifdef</code> guard; type conversion; runner dispatch</td>
+</tr>
+<tr class="even">
+<td><code>nmathopencl::dnorm_kernel_runner</code></td>
+<td>C++ kernel runner</td>
+<td>Full OpenCL lifecycle; <code>#ifdef USE_OPENCL</code> only</td>
+</tr>
+<tr class="odd">
+<td><code>Ex_EnvelopeEval</code></td>
+<td>Exported R function</td>
+<td>User-facing API; passes <code>use_opencl</code> flag</td>
+</tr>
+<tr class="even">
+<td><code>.EnvelopeEval_cpp</code></td>
+<td>Internal R → C++ bridge</td>
+<td>Positional R → C++ call only</td>
+</tr>
+<tr class="odd">
+<td><code>f2_f3_opencl</code></td>
+<td>C++ kernel wrapper</td>
+<td>OpenCL path; used inside dispatcher</td>
+</tr>
+<tr class="even">
+<td><code>f2_f3_non_opencl</code></td>
+<td>C++ CPU implementation</td>
+<td>CPU path; used inside same dispatcher</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>.dot</code> prefix on internal R functions signals that
+they are not part of the public API and will not appear in
+<code>?help</code> search or autocompletion.</p>
+<p>For your own package, a consistent analogous scheme might be:</p>
+<pre><code>myfunc_opencl()        # exported R function  (if direct R use)
+.myfunc_opencl()       # internal R → C++ bridge
+mypkg::myfunc_opencl() # C++ kernel wrapper (in namespace)
+mypkg::myfunc_runner() # C++ kernel runner   (in namespace, #ifdef only)
+mypkg::myfunc_cpu()    # C++ CPU fallback    (if Pattern 2)</code></pre>
+<hr />
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<p>Every kernel wrapper needs a CPU path. The two patterns differ in
+where that path lives and who controls the dispatch:</p>
+<ul>
+<li><p><strong>Pattern 1</strong> puts the fallback logic in R, using
+the existing <code>stats::</code> ecosystem. It is the right choice when
+the computation mirrors an existing R function and has direct R
+users.</p></li>
+<li><p><strong>Pattern 2</strong> puts the fallback logic in C++,
+alongside a dedicated CPU implementation. It is the right choice when
+the computation is novel, when it is called from a C++ simulation loop
+rather than directly from R, or when benchmarking between the two paths
+is important.</p></li>
+</ul>
+<p>In both patterns the OpenCL infrastructure — the runner and the
+kernel — is identical. What differs is only how the wrapper is wired
+into the rest of the package.</p>
+<p>Chapter 12 describes the <code>nmathopencl</code> R API in full,
+showing how the distribution-function wrappers are documented and
+organized. Chapter 10 works through the <code>ex_glmbayes</code> pattern
+end-to-end.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

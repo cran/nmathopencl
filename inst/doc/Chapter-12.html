@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-06-11" />
+
+<title>Chapter 12: The nmathopencl R API — Distribution Functions on the GPU</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter 12: The nmathopencl R API —
+Distribution Functions on the GPU</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-06-11</h4>
+
+
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p><code>nmathopencl</code> exports a family of R functions that mirror
+R’s <code>stats::</code> distribution functions but dispatch computation
+to an OpenCL device when one is available. The calling convention is
+intentionally close to the base-R equivalents so that substitution is
+straightforward.</p>
+<p>All exported functions share three common arguments:</p>
+<table>
+<colgroup>
+<col width="29%" />
+<col width="17%" />
+<col width="26%" />
+<col width="26%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Argument</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>fallback</code></td>
+<td>logical</td>
+<td><code>FALSE</code></td>
+<td>If <code>TRUE</code> while <code>nmathopencl_has_opencl()</code> is
+<code>TRUE</code>, fall back to the <code>stats::</code> analogue when
+the OpenCL call fails; ignored when OpenCL is unavailable (CPU is used
+anyway)</td>
+</tr>
+<tr class="even">
+<td><code>verbose</code></td>
+<td>logical</td>
+<td><code>FALSE</code></td>
+<td>Extra diagnostics (including when picking the CPU path with no
+OpenCL runtime)</td>
+</tr>
+<tr class="odd">
+<td><code>log</code> / <code>lower.tail</code></td>
+<td>logical</td>
+<td>distribution-specific</td>
+<td>Mirror the <code>stats::</code> convention for the same
+function</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="checking-availability" class="section level2">
+<h2>Checking availability</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(nmathopencl)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co"># TRUE if this nmathopencl build was compiled with USE_OPENCL</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="fu">nmathopencl_has_opencl</span>()</span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co"># GPU device names on the host (opencltools --- system inventory)</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">gpu_names</span>()</span></code></pre></div>
+<p>If OpenCL is not available (<code>nmathopencl_has_opencl()</code>
+returns <code>FALSE</code>), calls use the CPU equivalent
+unconditionally so examples and CI keep working.</p>
+<p>By default <code>fallback = FALSE</code>: when OpenCL
+<strong>is</strong> available but a dispatch fails, the error
+propagates—useful while debugging kernels. Pass
+<code>fallback = TRUE</code> only when you deliberately want GPU
+failures masked with the CPU analogue.</p>
+</div>
+<div id="normal-distribution" class="section level2">
+<h2>Normal distribution</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>x  <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fl">1e6</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># Density</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>d  <span class="ot">&lt;-</span> <span class="fu">dnorm_opencl</span>(x, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>, <span class="at">log =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co"># CDF --- same core arguments as stats::pnorm(q, mean, sd, lower.tail, log.p);</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a><span class="co">#          plus opencl_parallel, fallback, verbose. Long outputs use recycling length.</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">pnorm_opencl</span>(</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>  <span class="fu">rep</span>(<span class="fl">1.96</span>, <span class="fl">1e6</span>),</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>  <span class="at">mean =</span> <span class="dv">0</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>  <span class="at">sd =</span> <span class="dv">1</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>  <span class="at">lower.tail =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>  <span class="at">log.p =</span> <span class="cn">FALSE</span></span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>)</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a></span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a><span class="co"># Quantile (`qnorm_opencl` retains leading `n` + scalar `p`, unlike `stats::qnorm`-style vectors)</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>q  <span class="ot">&lt;-</span> <span class="fu">qnorm_opencl</span>(<span class="at">n =</span> <span class="fl">1e6</span>, <span class="at">p =</span> <span class="fl">0.975</span>, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>)</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a><span class="co"># Random draws</span></span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>r  <span class="ot">&lt;-</span> <span class="fu">rnorm_opencl</span>(<span class="at">n =</span> <span class="fl">1e6</span>, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>)</span></code></pre></div>
+<p>Note the signature difference between <code>dnorm_opencl</code>
+(takes a vector <code>x</code>) and <code>qnorm_opencl</code> /
+<code>rnorm_opencl</code>, which retain a leading <code>n</code>
+argument for replicate-many quantiles (<code>qnorm</code>) or draws
+(<code>rnorm</code>). For the CDF, <code>pnorm_opencl</code> parallels
+<code>stats::pnorm(q, mean = 0, sd = 1, lower.tail = TRUE, log.p = FALSE)</code>
+and adds only <code>opencl_parallel</code>, <code>fallback</code>, and
+<code>verbose</code>. Output length is the usual recycled length
+(<code>max(length(q), ...)</code>, as in stats). On GPU (when used),
+each output element runs <code>pnorm_kernel</code> once in sequence
+(high overhead until a batched kernel is added).</p>
+</div>
+<div id="distribution-families" class="section level2">
+<h2>Distribution families</h2>
+<div id="gamma" class="section level3">
+<h3>Gamma</h3>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">dgamma_opencl</span>(n, x, <span class="at">shape =</span> <span class="dv">2</span>, <span class="at">scale =</span> <span class="dv">1</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">pgamma_opencl</span>(q, <span class="at">shape =</span> <span class="dv">2</span>, <span class="at">rate =</span> <span class="dv">1</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="fu">rgamma_opencl</span>(n, <span class="at">shape =</span> <span class="dv">2</span>, <span class="at">scale =</span> <span class="dv">1</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># qgamma: use stats::qgamma(); the OpenCL kernel is internal-only</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co"># (device compile failure, see inst/OPENCL_KERNEL_KNOWN_FAILURES.md)</span></span></code></pre></div>
+</div>
+<div id="binomial" class="section level3">
+<h3>Binomial</h3>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">dbinom_opencl</span>(x, <span class="at">size =</span> <span class="dv">10</span>, <span class="at">prob =</span> <span class="fl">0.3</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">pbinom_opencl</span>(q, <span class="at">size =</span> <span class="dv">10</span>, <span class="at">prob =</span> <span class="fl">0.3</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="fu">qbinom_opencl</span>(p, <span class="at">size =</span> <span class="dv">10</span>, <span class="at">prob =</span> <span class="fl">0.3</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="fu">rbinom_opencl</span>(n, <span class="at">size =</span> <span class="dv">10</span>, <span class="at">prob =</span> <span class="fl">0.3</span>)</span></code></pre></div>
+</div>
+<div id="poisson" class="section level3">
+<h3>Poisson</h3>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">dpois_opencl</span>(x, <span class="at">lambda =</span> <span class="dv">3</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">ppois_opencl</span>(q, <span class="at">lambda =</span> <span class="dv">3</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="fu">qpois_opencl</span>(p, <span class="at">lambda =</span> <span class="dv">3</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="fu">rpois_opencl</span>(n, <span class="at">lambda =</span> <span class="dv">3</span>)</span></code></pre></div>
+</div>
+<div id="beta" class="section level3">
+<h3>Beta</h3>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">dbeta_opencl</span>(x, <span class="at">shape1 =</span> <span class="dv">2</span>, <span class="at">shape2 =</span> <span class="dv">5</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">pbeta_opencl</span>(q, <span class="at">shape1 =</span> <span class="dv">2</span>, <span class="at">shape2 =</span> <span class="dv">5</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="fu">rbeta_opencl</span>(n, <span class="at">shape1 =</span> <span class="dv">2</span>, <span class="at">shape2 =</span> <span class="dv">5</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co"># qbeta: use stats::qbeta(); the OpenCL kernel is internal-only</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co"># (device link failure, see inst/OPENCL_KERNEL_KNOWN_FAILURES.md)</span></span></code></pre></div>
+</div>
+<div id="additional-families" class="section level3">
+<h3>Additional families</h3>
+<p>All families below follow the same four-function pattern
+(<code>d*</code>, <code>p*</code>, <code>q*</code>, <code>r*</code>)
+with the same <code>fallback</code> / <code>verbose</code>
+arguments:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Family</th>
+<th>R file</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Cauchy</td>
+<td><code>cauchy_opencl.R</code></td>
+</tr>
+<tr class="even">
+<td>Chi-squared</td>
+<td><code>chisq_opencl.R</code></td>
+</tr>
+<tr class="odd">
+<td>Exponential</td>
+<td><code>exponential_opencl.R</code></td>
+</tr>
+<tr class="even">
+<td>F</td>
+<td><code>f_opencl.R</code></td>
+</tr>
+<tr class="odd">
+<td>Geometric</td>
+<td><code>geometric_opencl.R</code></td>
+</tr>
+<tr class="even">
+<td>Hypergeometric</td>
+<td><code>hypergeometric_opencl.R</code></td>
+</tr>
+<tr class="odd">
+<td>Log-normal</td>
+<td><code>lnorm_opencl.R</code></td>
+</tr>
+<tr class="even">
+<td>Logistic</td>
+<td><code>logistic_opencl.R</code></td>
+</tr>
+<tr class="odd">
+<td>Negative binomial</td>
+<td><code>negative_binomial_opencl.R</code></td>
+</tr>
+<tr class="even">
+<td>t</td>
+<td><code>t_opencl.R</code></td>
+</tr>
+<tr class="odd">
+<td>Uniform</td>
+<td><code>uniform_opencl.R</code></td>
+</tr>
+<tr class="even">
+<td>Weibull</td>
+<td><code>weibull_opencl.R</code></td>
+</tr>
+<tr class="odd">
+<td>Multivariate discrete</td>
+<td><code>multinomial_opencl.R</code></td>
+</tr>
+<tr class="even">
+<td>Tukey</td>
+<td><code>tukey_opencl.R</code></td>
+</tr>
+</tbody>
+</table>
+<p>The Wilcoxon rank-sum (<code>rwilcox_opencl.R</code>), Wilcoxon
+signed-rank (<code>signrank_opencl.R</code>), and Bessel
+(<code>bessel_opencl.R</code>) wrappers are internal-only: their OpenCL
+ports have documented allocation/runtime failures (see
+<code>inst/OPENCL_KERNEL_KNOWN_FAILURES.md</code> and the notes in
+<code>inst/cl/</code>). Use the <code>stats</code>/<code>base</code>
+equivalents instead.</p>
+</div>
+<div id="noncentral-distributions" class="section level3">
+<h3>Noncentral distributions</h3>
+<p>Noncentral variants (<code>dnt_opencl</code>,
+<code>dnchisq_opencl</code>, <code>dnf_opencl</code>,
+<code>dnbeta_opencl</code>, and their <code>p*</code>, <code>q*</code>
+counterparts) are available with the noncentrality parameter
+<code>ncp</code>.</p>
+</div>
+</div>
+<div id="special-functions-and-math-support" class="section level2">
+<h2>Special functions and math support</h2>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Log-gamma</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">lgammafn_opencl</span>(n, x)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="fu">lgammafn_sign_opencl</span>(n, x)</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co"># Gamma function</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="fu">gammafn_opencl</span>(n, x)</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co"># Log-gamma at x+1</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="fu">lgamma1p_opencl</span>(n, x)</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co"># Digamma / polygamma</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="fu">digamma_opencl</span>(n, x)</span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="fu">trigamma_opencl</span>(n, x)</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="fu">psigamma_opencl</span>(n, x, deriv)</span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co"># Beta and log-beta</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="fu">beta_special_opencl</span>(n, a, b)</span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a><span class="fu">lbeta_special_opencl</span>(n, a, b)</span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a><span class="co"># Binomial coefficients</span></span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a><span class="fu">choose_special_opencl</span>(n_out, n, k)</span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a><span class="fu">lchoose_special_opencl</span>(n_out, n, k)</span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a><span class="co"># Logspace arithmetic</span></span>
+<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a><span class="fu">logspace_add_opencl</span>(n, logx, logy)</span>
+<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a><span class="fu">logspace_sub_opencl</span>(n, logx, logy)</span>
+<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a><span class="fu">logspace_sum_opencl</span>(n, logx, logy)</span>
+<span id="cb7-28"><a href="#cb7-28" tabindex="-1"></a></span>
+<span id="cb7-29"><a href="#cb7-29" tabindex="-1"></a><span class="co"># Math support</span></span>
+<span id="cb7-30"><a href="#cb7-30" tabindex="-1"></a><span class="fu">fmax2_opencl</span>(n, x, y)</span>
+<span id="cb7-31"><a href="#cb7-31" tabindex="-1"></a><span class="fu">fmin2_opencl</span>(n, x, y)</span></code></pre></div>
+<p>These are exported via <code>special_opencl.R</code> and
+<code>math_support_opencl.R</code>.</p>
+</div>
+<div id="r-extension-utilities-r_ext" class="section level2">
+<h2>R extension utilities (<code>R_ext</code>)</h2>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co"># R-compatible power</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="fu">r_pow_opencl</span>(n, x, y)</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="fu">r_pow_di_opencl</span>(n, x, i)</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co"># Miscellaneous math helpers</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="fu">log1pmx_opencl</span>(n, x)</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="fu">log1pexp_opencl</span>(n, x)</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="fu">log1mexp_opencl</span>(n, x)</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="fu">pow1p_opencl</span>(n, x, y)</span></code></pre></div>
+<p>These are exported via <code>rext_utils_opencl.R</code>.</p>
+</div>
+<div id="rng-core" class="section level2">
+<h2>RNG core</h2>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Base RNG draws</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">norm_rand_opencl</span>(n)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="fu">unif_rand_opencl</span>(n)</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="fu">exp_rand_opencl</span>(n)</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="fu">r_unif_index_opencl</span>(n, dt)</span></code></pre></div>
+<p>These generate random samples using device-side implementations of
+the same Kinderman-Ramage / Ahrens-Dieter algorithms used by R’s
+internal RNG. They are exported via <code>rng_core_opencl.R</code>.</p>
+</div>
+<div id="fallback-behavior-in-detail" class="section level2">
+<h2>Fallback behavior in detail</h2>
+<ol style="list-style-type: decimal">
+<li><p><strong><code>nmathopencl_has_opencl()</code> is
+<code>FALSE</code></strong> (no runtime device / not compiled with
+OpenCL): the wrapper always uses the CPU <code>stats::</code>/base
+analogue. The <strong><code>fallback</code> argument does not gate
+this</strong>; it is ignored for this branch.</p></li>
+<li><p><strong><code>nmathopencl_has_opencl()</code> is
+<code>TRUE</code></strong>, but OpenCL enqueue/compile/bind fails inside
+the <code>.Call</code>: the outer R shim catches the failure.
+<strong><code>fallback = FALSE</code> (default):</strong> propagate the
+error. <strong><code>fallback = TRUE</code>:</strong> return the CPU
+analogue instead (optional masking for fragile stacks).</p></li>
+</ol>
+<p>Runnable examples under <code>inst/examples/</code> mostly use
+<strong><code>fallback = FALSE</code></strong> so
+<code>R CMD check</code> surfaces real OpenCL breakage when a device is
+present.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Default --- surface GPU/build errors during development / local check with OpenCL enabled:</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="fu">dnorm_opencl</span>(x)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co"># Permit CPU masking while OpenCL is flaky (not the development default):</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="fu">dnorm_opencl</span>(x, <span class="at">fallback =</span> <span class="cn">TRUE</span>, <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+</div>
+<div id="performance-notes" class="section level2">
+<h2>Performance notes</h2>
+<p>GPU acceleration is most beneficial for <strong>large
+vectors</strong> (&gt;= ~10,000 elements) and for functions with
+non-trivial per-element computation (e.g., <code>pgamma</code>,
+<code>pt</code>, <code>qnorm</code>). For very small inputs the kernel
+compilation overhead and data transfer latency dominate.</p>
+<p>The first call in an R session may be slightly slower because OpenCL
+JIT- compiles the kernel source for the specific device. Subsequent
+calls with the same kernel reuse the compiled program from the driver’s
+cache.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

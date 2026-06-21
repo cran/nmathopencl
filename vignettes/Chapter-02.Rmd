@@ -1,0 +1,301 @@
+---
+title: "Chapter 02: Adding USE_OPENCL and has_opencl() to Your Package"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Chapter 02: Adding USE_OPENCL and has_opencl() to Your Package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Overview
+
+Chapter 01 covers getting OpenCL working for `nmathopencl` itself. This chapter
+covers the natural next step for **package developers**: adding `USE_OPENCL` and
+`has_opencl()` to a package of your own so that it can call OpenCL kernels
+(possibly using the `nmathopencl` kernel library) while still building cleanly
+on CRAN and on machines without a GPU SDK.
+
+The two helper functions in this chapter are:
+
+| Function | When to use |
+|----------|-------------|
+| `use_opencl_configure()` | New package, or package with no existing `src/Makevars` |
+| `port_to_opencl_configure()` | Package that already has a committed static `src/Makevars` |
+
+Both produce a `configure` script (Linux/macOS) and a `configure.win` script
+(Windows) that generate `src/Makevars` dynamically at install time.
+
+## Why a static `src/Makevars` breaks CRAN
+
+Most Rcpp packages have a static committed `src/Makevars` along the lines of:
+
+```makefile
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+PKG_LIBS     = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+```
+
+If you add OpenCL references directly to this file:
+
+```makefile
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -DUSE_OPENCL -I/usr/include
+PKG_LIBS     = $(SHLIB_OPENMP_CXXFLAGS) -lOpenCL $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+```
+
+your package **will fail to compile** on any machine without an OpenCL SDK --
+including CRAN's build machines, which have no GPU SDK installed. The build
+aborts and no binary is produced.
+
+The fix is a pair of configure scripts that **probe for the SDK at install time**
+and generate a CPU-only `Makevars` when no SDK is found. The package always
+compiles, and the GPU path is activated only where the SDK is genuinely present.
+
+## The configure → USE_OPENCL → has_opencl() chain
+
+Three entities cooperate to give you CRAN-safe optional GPU acceleration:
+
+```
+configure / configure.win          (run by R CMD INSTALL)
+  |
+  |-- detects CL/cl.h + libOpenCL (+ runtime platform probe on Linux)
+  |
+  v
+src/Makevars / src/Makevars.win    (generated; never committed)
+  |
+  |-- PKG_CXXFLAGS = ...  [ -DUSE_OPENCL ... ]
+  |
+  v
+#ifdef USE_OPENCL                  (in your C++ source)
+  |
+  |-- guards all GPU code; package compiles cleanly either way
+  |
+  v
+has_opencl()                       (in your R code)
+  |
+  `-- calls a compiled-in bool that mirrors the compile-time flag;
+      returns TRUE only if -DUSE_OPENCL was set at install time
+```
+
+On Linux, the configure script goes one step further: it runs a small C probe
+(`clGetPlatformIDs`) to verify that at least one OpenCL platform is actually
+registered in `/etc/OpenCL/vendors/`, not just that the ICD loader is
+installed. `configure.win` (Windows) relies on header detection alone -- the
+GPU driver installs the ICD (`OpenCL.dll`) together with itself.
+
+## Adding `has_opencl()` to your package
+
+### C++ side
+
+Add a thin wrapper that exposes the compile-time flag at runtime. If you are
+using `Rcpp::export` attributes (the standard Rcpp workflow), add:
+
+```cpp
+// src/opencl_status.cpp
+#include <Rcpp.h>
+
+// [[Rcpp::export]]
+bool _mypkg_has_opencl_cpp() {
+#ifdef USE_OPENCL
+  return true;
+#else
+  return false;
+#endif
+}
+```
+
+`compileAttributes()` (run automatically during `devtools::document()`) will
+generate the required SEXP wrapper in `RcppExports.cpp`.
+
+If you prefer a plain `.Call()` without Rcpp attributes, the `nmathopencl`
+source in `src/nmathopencl_exports.cpp` shows the equivalent plain-C form.
+
+### R side
+
+```r
+# R/opencl_status.R
+
+#' Check whether this package was built with OpenCL support
+#'
+#' @return Logical scalar: \code{TRUE} if the package was installed from source
+#'   with an OpenCL SDK detected by the configure script; \code{FALSE} for
+#'   prebuilt CRAN/R-Universe binaries and CPU-only source installs.
+#' @export
+has_opencl <- function() {
+  .Call("_mypkg_has_opencl_cpp", PACKAGE = "mypkg")
+}
+```
+
+Replace `mypkg` with your package name. The function costs nothing at runtime
+(one compiled-in bool comparison) and lets R code branch between GPU and CPU
+paths without any dynamic linking to OpenCL.
+
+## Case 1: New package with no existing `src/Makevars`
+
+```{r, eval = FALSE}
+# From the root of your package:
+use_opencl_configure()
+```
+
+This writes `configure` and `configure.win` to the package root, sets
+`configure` executable on Unix, and prints a setup checklist. Both scripts
+always succeed: when no OpenCL SDK is found they write a CPU-only Makevars.
+
+Add the generated files to `.gitignore` (they are build artifacts):
+
+```
+src/Makevars
+src/Makevars.win
+```
+
+## Case 2: Existing package with a static `src/Makevars`
+
+If your package already has a **committed static** `src/Makevars`, use:
+
+```{r, eval = FALSE}
+port_to_opencl_configure()
+```
+
+The function:
+
+1. Reads your existing `src/Makevars` and extracts the values of
+   `PKG_CPPFLAGS`, `PKG_CXXFLAGS`, `PKG_CFLAGS`, and `PKG_LIBS`.
+2. Renames `src/Makevars` → `src/Makevars.in` (the maintained source
+   template; commit this file).
+3. Generates `configure` (Linux/macOS) and `configure.win` (Windows) that
+   read `src/Makevars.in` at install time, run OpenCL detection, and write
+   the final `src/Makevars` with the OpenCL flags merged in (or omitted for
+   CPU-only).
+4. Similarly handles `src/Makevars.win` → `src/Makevars.win.in` if present;
+   otherwise copies the generic `configure.win` template.
+5. Suggests `.gitignore` entries for the generated `src/Makevars` files.
+
+**After porting, maintain `src/Makevars.in` instead of `src/Makevars`.**
+`src/Makevars` is generated at install time and should not be committed.
+
+### What is preserved
+
+All content in `src/Makevars.in` that is not one of the four `PKG_*` key
+variables is passed through verbatim (comments, blank lines, and any other
+make variables you have defined). The four key variables are rebuilt by the
+configure script, incorporating your original base values plus the conditional
+OpenCL additions.
+
+For example, if your `src/Makevars.in` contains:
+
+```makefile
+# Package uses OpenMP and RcppParallel
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -I"$(R_LIBRARY_DIR)/RcppParallel/include"
+PKG_LIBS     = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) \
+               -L"$(R_LIBRARY_DIR)/RcppParallel/lib" -ltbb
+```
+
+The generated `src/Makevars` on an OpenCL-enabled machine will be:
+
+```makefile
+# Package uses OpenMP and RcppParallel
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) -I"$(R_LIBRARY_DIR)/RcppParallel/include" -DUSE_OPENCL -I/usr/include
+PKG_LIBS     = -L/usr/lib/x86_64-linux-gnu -lOpenCL $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) -L"$(R_LIBRARY_DIR)/RcppParallel/lib" -ltbb
+```
+
+And on a CPU-only machine `src/Makevars.in` is copied verbatim as
+`src/Makevars`, preserving the original flags exactly.
+
+### Caveats
+
+- **`+=` assignments:** If your `src/Makevars` uses append assignments
+  (`PKG_LIBS += -lm`), the function warns and you should review the generated
+  configure before use.
+- **Generated files:** Do not run `port_to_opencl_configure()` on a
+  machine-generated `src/Makevars` (one containing absolute paths or
+  `-lOpenCL`). The function checks for these patterns and warns. Run it on the
+  static source-controlled file.
+- **Existing configure scripts:** If `configure` or `configure.win` already
+  exists, the function refuses to overwrite without `overwrite = TRUE`. Users
+  who already have configure scripts should integrate the OpenCL detection
+  block manually; see
+  `system.file("configure-templates", "README.md", package = "nmathopencl")`.
+
+## Guarding OpenCL code in C++
+
+All code that depends on OpenCL headers or the OpenCL runtime must be wrapped
+in `#ifdef USE_OPENCL`:
+
+```cpp
+#include <Rcpp.h>
+
+#ifdef USE_OPENCL
+#include <CL/cl.h>
+// ... OpenCL device setup, kernel compilation, dispatch ...
+#endif
+
+// [[Rcpp::export]]
+Rcpp::NumericVector my_gpu_function(Rcpp::NumericVector x) {
+#ifdef USE_OPENCL
+  // GPU path
+  return run_on_gpu(x);
+#else
+  // CPU fallback
+  return run_on_cpu(x);
+#endif
+}
+```
+
+This is the same pattern used throughout `nmathopencl` and `glmbayes`. The
+preprocessor guards ensure the package compiles cleanly in both configurations
+from a single codebase.
+
+## Testing the CPU-only path before CRAN submission
+
+Always verify the CPU-only build before submitting to CRAN:
+
+```bash
+# Linux / macOS: temporarily disable the configure script
+mv configure configure.disabled
+R CMD INSTALL --preclean .
+Rscript -e "library(mypkg); stopifnot(!has_opencl())"
+mv configure.disabled configure
+
+# Restore the GPU-enabled build
+R CMD INSTALL --preclean .
+```
+
+On Windows, rename `configure.win` similarly. This simulates what CRAN's build
+machines experience and will expose any `#ifdef USE_OPENCL` guards you may have
+missed.
+
+## DESCRIPTION dependencies
+
+If your package uses `nmathopencl`'s kernel-loading infrastructure or
+`openclPort.h`, add the following to `DESCRIPTION`:
+
+```
+LinkingTo: nmathopencl, Rcpp
+Imports: nmathopencl
+```
+
+`LinkingTo` makes `openclPort.h` available at compile time for your C++ code.
+`Imports` makes **opencltools** kernel loaders available (`opencltools::load_kernel_library`, etc.;
+pass `package = "nmathopencl"` for this package's `inst/cl`)
+at runtime. If you only use `nmathopencl` at the R level (not via `LinkingTo`),
+`Imports` alone is sufficient.
+
+## Migration note
+
+`use_opencl_configure()` and `port_to_opencl_configure()` are currently in
+`nmathopencl` while `opencltools` completes its initial CRAN review. Once
+`opencltools` is available on CRAN, both functions will move there and
+`nmathopencl` will re-export them -- the same pattern used for the Tier 4
+kernel-authoring tools. The function signatures will not change; no action is
+required from downstream package authors.
+
+For the full configure template source, detailed environment-variable
+documentation, and the migration plan, see:
+
+```{r, eval = FALSE}
+system.file("configure-templates", "README.md", package = "nmathopencl")
+```

@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-06-11" />
+
+<title>Chapter 04: The nmath OpenCL Library</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter 04: The nmath OpenCL Library</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-06-11</h4>
+
+
+
+<div id="what-is-instclnmath" class="section level2">
+<h2>What is <code>inst/cl/nmath/</code>?</h2>
+<p>The <code>nmath/</code> subdirectory under <code>inst/cl/</code>
+contains a complete OpenCL C port of R’s <code>nmath</code> (Mathlib)
+library — approximately 180 <code>.cl</code> files, one per source file
+in R’s <code>src/nmath/</code>. Together they implement the full suite
+of statistical distribution functions (densities, CDFs, quantiles,
+random-variate generators) and supporting mathematical helpers that make
+up R’s statistical computing core.</p>
+<p>The port is designed so that any downstream package can load a
+<strong>subset</strong> of this library — just the functions it actually
+needs — without pulling in the entire collection. The annotation scheme
+and dependency resolver (described in Chapter 08) make this
+automatic.</p>
+</div>
+<div id="annotation-scheme" class="section level2">
+<h2>Annotation scheme</h2>
+<p>Every <code>.cl</code> file in <code>nmath/</code> begins with a
+standard metadata block:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co">// @source_type: c</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co">// @source_origin: dnorm.c</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="co">// @includes: nmath.h, dpq.h</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co">// @depends: nmath, dpq</span></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="co">// @provides: dnorm4</span></span>
+<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="co">// @all_depends_count: 3</span></span>
+<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="co">// @all_depends: dpq, Rmath, nmath</span></span>
+<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="co">// @load_order: 36</span></span></code></pre></div>
+<table>
+<colgroup>
+<col width="35%" />
+<col width="64%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tag</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>@source_type</code></td>
+<td>Always <code>c</code> for nmath ports</td>
+</tr>
+<tr class="even">
+<td><code>@source_origin</code></td>
+<td>The original C source file in R’s <code>src/nmath/</code></td>
+</tr>
+<tr class="odd">
+<td><code>@includes</code></td>
+<td>Headers included in the original C file</td>
+</tr>
+<tr class="even">
+<td><code>@depends</code></td>
+<td><strong>Direct</strong> file dependencies (<code>.cl</code>
+filenames without extension)</td>
+</tr>
+<tr class="odd">
+<td><code>@provides</code></td>
+<td>Functions defined in this file</td>
+</tr>
+<tr class="even">
+<td><code>@all_depends</code></td>
+<td>Full transitive closure of dependencies (union over the DAG)</td>
+</tr>
+<tr class="odd">
+<td><code>@all_depends_count</code></td>
+<td>Number of entries in <code>@all_depends</code></td>
+</tr>
+<tr class="even">
+<td><code>@load_order</code></td>
+<td>Pre-computed position in the topologically sorted order</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>@depends</code> tag is what
+<code>opencltools::load_kernel_library()</code> uses to sort files. The
+<code>@all_depends</code> tag is informational — it documents the
+complete dependency set so that a developer extracting a minimal subset
+knows exactly which files to include.</p>
+</div>
+<div id="file-families" class="section level2">
+<h2>File families</h2>
+<p>The ~180 files are organized by function family. The table below
+shows representative entries for the main families.</p>
+<div id="infrastructure-header-files" class="section level3">
+<h3>Infrastructure / header files</h3>
+<table>
+<colgroup>
+<col width="37%" />
+<col width="62%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Provides</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>nmath.cl</code></td>
+<td>Library header: constants, macros, error codes</td>
+</tr>
+<tr class="even">
+<td><code>Rmath.cl</code></td>
+<td>Forward declarations for all Mathlib functions</td>
+</tr>
+<tr class="odd">
+<td><code>dpq.cl</code></td>
+<td><code>R_D__0</code>, <code>R_D__1</code>, <code>R_DT_0</code>,
+<code>R_DT_1</code>, <code>R_D_Lval</code>, … (log-prob helpers)</td>
+</tr>
+<tr class="even">
+<td><code>refactored.cl</code></td>
+<td>Forward declarations for cycle-broken functions</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="core-math-helpers" class="section level3">
+<h3>Core math helpers</h3>
+<table>
+<colgroup>
+<col width="37%" />
+<col width="62%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Provides</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>chebyshev.cl</code></td>
+<td><code>chebyshev_init</code>, <code>chebyshev_eval</code></td>
+</tr>
+<tr class="even">
+<td><code>cospi.cl</code></td>
+<td><code>cospi</code>, <code>sinpi</code>, <code>tanpi</code></td>
+</tr>
+<tr class="odd">
+<td><code>fmax2.cl</code></td>
+<td><code>fmax2</code></td>
+</tr>
+<tr class="even">
+<td><code>fmin2.cl</code></td>
+<td><code>fmin2</code></td>
+</tr>
+<tr class="odd">
+<td><code>gammalims.cl</code></td>
+<td><code>gammalims</code></td>
+</tr>
+<tr class="even">
+<td><code>lgammacor.cl</code></td>
+<td><code>lgammacor</code></td>
+</tr>
+<tr class="odd">
+<td><code>lgamma.cl</code></td>
+<td><code>lgammafn</code>, <code>lgammafn_sign</code></td>
+</tr>
+<tr class="even">
+<td><code>gamma.cl</code></td>
+<td><code>gammafn</code></td>
+</tr>
+<tr class="odd">
+<td><code>stirlerr.cl</code></td>
+<td><code>stirlerr</code></td>
+</tr>
+<tr class="even">
+<td><code>bd0.cl</code></td>
+<td><code>bd0</code>, <code>ebd0</code></td>
+</tr>
+<tr class="odd">
+<td><code>pgamma_utils.cl</code></td>
+<td><code>log1pmx</code>, <code>lgamma1p</code></td>
+</tr>
+<tr class="even">
+<td><code>mlutils.cl</code></td>
+<td><code>log1pexp</code>, <code>log1mexp</code>,
+<code>logspace_add</code>, <code>logspace_sub</code></td>
+</tr>
+<tr class="odd">
+<td><code>expm1.cl</code></td>
+<td><code>expm1</code> (if not an OpenCL built-in)</td>
+</tr>
+<tr class="even">
+<td><code>log1p.cl</code></td>
+<td><code>log1p</code> (if not an OpenCL built-in)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="density-functions-d" class="section level3">
+<h3>Density functions (<code>d*</code>)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Provides</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>dnorm.cl</code></td>
+<td><code>dnorm4</code></td>
+</tr>
+<tr class="even">
+<td><code>dgamma.cl</code></td>
+<td><code>dgamma</code></td>
+</tr>
+<tr class="odd">
+<td><code>dbinom.cl</code></td>
+<td><code>dbinom_raw</code>, <code>dbinom</code></td>
+</tr>
+<tr class="even">
+<td><code>dpois.cl</code></td>
+<td><code>dpois_raw</code>, <code>dpois</code></td>
+</tr>
+<tr class="odd">
+<td><code>dbeta.cl</code></td>
+<td><code>dbeta</code></td>
+</tr>
+<tr class="even">
+<td><code>dt.cl</code></td>
+<td><code>dt</code></td>
+</tr>
+<tr class="odd">
+<td><code>df.cl</code></td>
+<td><code>df</code></td>
+</tr>
+<tr class="even">
+<td><code>dnbinom.cl</code></td>
+<td><code>dnbinom</code>, <code>dnbinom_mu</code></td>
+</tr>
+<tr class="odd">
+<td><code>dchisq.cl</code></td>
+<td><code>dchisq</code></td>
+</tr>
+<tr class="even">
+<td><code>dexp.cl</code></td>
+<td><code>dexp</code></td>
+</tr>
+<tr class="odd">
+<td><code>dweibull.cl</code></td>
+<td><code>dweibull</code></td>
+</tr>
+<tr class="even">
+<td><code>dlnorm.cl</code></td>
+<td><code>dlnorm</code></td>
+</tr>
+<tr class="odd">
+<td><code>dlogis.cl</code></td>
+<td><code>dlogis</code></td>
+</tr>
+<tr class="even">
+<td><code>dcauchy.cl</code></td>
+<td><code>dcauchy</code></td>
+</tr>
+<tr class="odd">
+<td><code>dunif.cl</code></td>
+<td><code>dunif</code></td>
+</tr>
+<tr class="even">
+<td><code>dhyper.cl</code></td>
+<td><code>dhyper</code></td>
+</tr>
+<tr class="odd">
+<td><code>dgeom.cl</code></td>
+<td><code>dgeom</code></td>
+</tr>
+<tr class="even">
+<td><code>dnt.cl</code></td>
+<td><code>dnt</code> (noncentral t)</td>
+</tr>
+<tr class="odd">
+<td><code>dnf.cl</code></td>
+<td><code>dnf</code> (noncentral F)</td>
+</tr>
+<tr class="even">
+<td><code>dnchisq.cl</code></td>
+<td><code>dnchisq</code> (noncentral chi-sq)</td>
+</tr>
+<tr class="odd">
+<td><code>dnbeta.cl</code></td>
+<td><code>dnbeta</code> (noncentral beta)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="cdf-functions-p" class="section level3">
+<h3>CDF functions (<code>p*</code>)</h3>
+<p>Similar coverage for <code>pnorm.cl</code>, <code>pgamma.cl</code>,
+<code>pbinom.cl</code>, <code>ppois.cl</code>, <code>pbeta.cl</code>,
+<code>pt.cl</code>, <code>pf.cl</code>, etc. Each file ports the
+corresponding <code>p&lt;dist&gt;.c</code> from R’s source.</p>
+</div>
+<div id="quantile-functions-q" class="section level3">
+<h3>Quantile functions (<code>q*</code>)</h3>
+<p><code>qnorm.cl</code>, <code>qgamma.cl</code>,
+<code>qbinom.cl</code>, <code>qpois.cl</code>, <code>qbeta.cl</code>,
+<code>qt.cl</code>, <code>qf.cl</code>, etc. Discrete quantile functions
+use a shared binary-search helper in
+<code>qDiscrete_search.cl</code>.</p>
+</div>
+<div id="random-variate-generators-r" class="section level3">
+<h3>Random-variate generators (<code>r*</code>)</h3>
+<p><code>rnorm.cl</code>, <code>rgamma.cl</code>,
+<code>rbinom.cl</code>, <code>rpois.cl</code>, <code>rbeta.cl</code>,
+<code>rt.cl</code>, <code>runif.cl</code>, etc. These files define the
+device-side generator logic; the actual RNG seed and state management is
+handled by the host-side kernel runner.</p>
+</div>
+<div id="special-functions" class="section level3">
+<h3>Special functions</h3>
+<table>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Provides</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>beta.cl</code></td>
+<td><code>beta</code> (beta function)</td>
+</tr>
+<tr class="even">
+<td><code>lbeta.cl</code></td>
+<td><code>lbeta</code></td>
+</tr>
+<tr class="odd">
+<td><code>choose.cl</code></td>
+<td><code>choose</code>, <code>lchoose</code></td>
+</tr>
+<tr class="even">
+<td><code>polygamma.cl</code></td>
+<td><code>psigamma</code>, <code>digamma</code>, <code>trigamma</code>,
+…</td>
+</tr>
+<tr class="odd">
+<td><code>toms708.cl</code></td>
+<td>Incomplete beta (TOMS 708 algorithm)</td>
+</tr>
+<tr class="even">
+<td><code>bessel.cl</code></td>
+<td><code>bessel_i</code>, <code>bessel_j</code>, <code>bessel_k</code>,
+<code>bessel_y</code></td>
+</tr>
+<tr class="odd">
+<td><code>signrank.cl</code></td>
+<td><code>dsignrank</code>, <code>psignrank</code>,
+<code>qsignrank</code>, <code>rsignrank</code></td>
+</tr>
+<tr class="even">
+<td><code>wilcox.cl</code></td>
+<td><code>dwilcox</code>, <code>pwilcox</code>, <code>qwilcox</code>,
+<code>rwilcox</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="additional-utilities" class="section level3">
+<h3>Additional utilities</h3>
+<table>
+<colgroup>
+<col width="37%" />
+<col width="62%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Provides</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>fprec.cl</code>, <code>fround.cl</code>,
+<code>ftrunc.cl</code>, <code>fsign.cl</code></td>
+<td>Rounding/truncation</td>
+</tr>
+<tr class="even">
+<td><code>imax2.cl</code>, <code>imin2.cl</code></td>
+<td>Integer min/max</td>
+</tr>
+<tr class="odd">
+<td><code>sign.cl</code></td>
+<td><code>sign</code></td>
+</tr>
+<tr class="even">
+<td><code>d1mach.cl</code>, <code>i1mach.cl</code></td>
+<td>Machine constants (BLAS-era helpers)</td>
+</tr>
+<tr class="odd">
+<td><code>r_check_user_interrupt.cl</code></td>
+<td>Stub for interrupt checking</td>
+</tr>
+<tr class="even">
+<td><code>sexp.cl</code>, <code>snorm.cl</code>,
+<code>sunif.cl</code></td>
+<td>Alternative RNG implementations</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="cycle-breaking-artifacts" class="section level2">
+<h2>Cycle-breaking artifacts</h2>
+<p>OpenCL compiles a program as a <strong>single translation
+unit</strong>: every function must be defined before it is called (no
+forward-declaration headers, no separate compilation). A handful of the
+nmath C files are mutually recursive in ways that C handles via separate
+compilation but OpenCL cannot.</p>
+<p><code>nmathopencl</code> resolves these cycles by splitting the
+offending source file into two <code>.cl</code> files:</p>
+<pre><code>stirlerr.c  -&gt;  stirlerr_cycle_free.cl      (no forward references)
+               stirlerr_cycle_dependent.cl  (calls the forward-declared part)
+               refactored.cl               (forward declarations only)</code></pre>
+<p><code>refactored.cl</code> contains <code>extern</code>-style forward
+declarations so that the cycle-dependent portion can reference symbols
+that appear later in the concatenated source. The <code>@depends</code>
+tags ensure the three files are loaded in the correct order:
+<code>refactored</code> -&gt; <code>stirlerr_cycle_free</code> -&gt;
+<code>stirlerr_cycle_dependent</code> -&gt; <code>stirlerr</code>.</p>
+<p>Similarly, <code>bessel_j</code> and <code>bessel_y</code> are each
+split into <code>*_cycle_free.cl</code> and
+<code>*_cycle_dependent.cl</code> for the same reason.</p>
+</div>
+<div id="the-ex_glmbayes_nmath-subset" class="section level2">
+<h2>The <code>ex_glmbayes_nmath/</code> subset</h2>
+<p>Because the full <code>nmath/</code> library is large (~180 files),
+the package also ships a pre-curated minimal subset in
+<code>inst/cl/ex_glmbayes_nmath/</code> — exactly the 20 files needed by
+the six <code>glmbayes</code> kernels:</p>
+<pre><code>Rmath.cl, nmath.cl, refactored.cl,
+chebyshev.cl, cospi.cl, fmax2.cl, gammalims.cl, lgammacor.cl,
+gamma.cl, lgamma.cl,
+stirlerr_cycle_free.cl, pgamma_utils.cl, stirlerr_cycle_dependent.cl,
+stirlerr.cl, bd0.cl,
+dpois.cl, dgamma.cl, dnorm.cl, pnorm.cl, dbinom.cl</code></pre>
+<p>This subset is determined by the <code>@all_depends</code> metadata
+in the six kernel files. Chapter 10 shows how to perform this extraction
+for a new downstream package.</p>
+</div>
+<div id="porting-fidelity" class="section level2">
+<h2>Porting fidelity</h2>
+<p>The port aims for bit-for-bit equivalence with the CPU nmath results
+on IEEE 754 hardware. The main sources of deviation are:</p>
+<ol style="list-style-type: decimal">
+<li><strong>Compiler flags</strong>: the OpenCL compiler may reorder
+floating-point operations unless <code>-cl-fp64-round-to-nearest</code>
+is specified. The <code>OpenCLConfig</code> struct in
+<code>openclPort.h</code> probes the device and sets appropriate build
+flags.</li>
+<li><strong>Built-in precision</strong>: some OpenCL devices implement
+<code>sqrt</code>, <code>exp</code>, and <code>log</code> with 1 ULP
+error (IEEE 754 guarantees exactly rounded); others allow slightly more.
+In practice, deviations are below numerical tolerance for all
+statistical applications.</li>
+<li><strong>OpenCL built-ins</strong>: functions like
+<code>lgamma</code>, <code>tgamma</code>, <code>expm1</code>, and
+<code>log1p</code> are part of the OpenCL 1.1+ specification and do
+<strong>not</strong> need to be ported. The corresponding
+<code>.cl</code> files include <code>#ifndef</code> guards so that the
+ported version is only compiled if the built-in is absent.</li>
+</ol>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

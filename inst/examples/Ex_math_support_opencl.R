@@ -1,0 +1,21 @@
+if (!nmathopencl_has_opencl() || identical(Sys.getenv("NOT_CRAN"), "true")) {
+  imax2_opencl(x = 7, y = 3, fallback = FALSE, verbose = TRUE)
+  imin2_opencl(x = 7, y = 3, fallback = FALSE, verbose = TRUE)
+  fmax2_opencl(x = 7.2, y = 3.1, fallback = FALSE, verbose = TRUE)
+  fmin2_opencl(x = 7.2, y = 3.1, fallback = FALSE, verbose = TRUE)
+  sign_opencl(x = -2.5, fallback = FALSE, verbose = TRUE)
+  fprec_opencl(x = 123.456, digits = 4, fallback = FALSE, verbose = TRUE)
+  fround_opencl(x = 123.456, digits = 2, fallback = FALSE, verbose = TRUE)
+  fsign_opencl(x = -2.5, y = 4.0, fallback = FALSE, verbose = TRUE)
+  ftrunc_opencl(x = 123.456, fallback = FALSE, verbose = TRUE)
+} else {
+  as.double(pmax(7L, 3L))
+  as.double(pmin(7L, 3L))
+  pmax(7.2, 3.1)
+  pmin(7.2, 3.1)
+  base::sign(-2.5)
+  signif(123.456, digits = 4)
+  base::round(123.456, digits = 2)
+  base::sign(-2.5) * abs(4.0)
+  base::trunc(123.456)
+}

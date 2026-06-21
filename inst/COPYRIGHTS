@@ -1,0 +1,69 @@
+Copyright and Derived Code Notices for nmathopencl
+
+The original nmathopencl package code, documentation, examples, and vignettes are
+copyright Kjell Nygren, except where otherwise noted below.
+
+R Mathlib and R Source Code
+---------------------------
+
+The package includes local copies, adaptations, or translations of selected
+portions of R Mathlib and related R extension headers in src/nmath/, src/, and
+inst/cl/. These files retain the original copyright and license notices where
+present. The OpenCL sources in inst/cl/nmath/, inst/cl/src/, and supporting
+shim layers (for example inst/cl/libR_shims/, inst/cl/R_ext_types/,
+inst/cl/R_ext_runtime/, inst/cl/R_shims/, inst/cl/System/) are ports or
+adaptations of relevant R Mathlib distribution routines, probability helper
+code, numerical support code, constants, and related headers.
+
+Relevant copyright holders and contributors include The R Core Team, The R
+Foundation, Ross Ihaka, Robert Gentleman, Morten Welinder, and Martin Maechler.
+The applicable licenses are GPL-2-or-later and/or LGPL-2.1-or-later as
+indicated in the individual source file headers, consistent with the package
+License field (GPL (>= 2)).
+
+Individual code authors credited in the R Mathlib source headers (and their
+OpenCL ports here):
+
+- Catherine Loader: dbinom, dbeta, dgamma, dpois, dgeom, dhyper, dnbinom,
+  dt, df densities and the bd0/stirlerr support routines.
+- Morten Welinder: ebd0 (bd0.c); copyright holder on pgamma.c and phyper.c.
+- Claus Ekstrom: dnt.c (noncentral t density).
+- Peter Ruckdeschel: dnf.c (noncentral F density).
+- Alfred H. Morris, Jr. and Armido R. Didonato: ACM TOMS Algorithm 708
+  (toms708.c, incomplete beta function ratios underlying pbeta).
+
+All original AUTHOR and copyright notices are preserved in the individual
+source file headers under src/, src/nmath/, and inst/cl/.
+
+OpenCL API Headers
+------------------
+
+The bundled OpenCL API headers inst/include/CL/cl.h and
+inst/include/CL/cl_platform.h are Copyright (c) 2008-2020 The Khronos Group
+Inc. and are licensed under the Apache License, Version 2.0. The original
+copyright and license notices are preserved in the file headers.
+
+Illustrative GLM / Envelope Examples
+------------------------------------
+
+Functions such as Ex_EnvelopeEval, Ex_glmbfamfunc, and related Ex_* helpers
+demonstrate how downstream packages (for example the suggested package glmbayes)
+may assemble custom OpenCL kernels on top of the ported nmath sources. They are
+original to this package's teaching and integration layer and are not a full
+reimplementation of stats::glm() or stats::lm().
+
+Package Dependencies
+--------------------
+
+The package links to or imports external R packages including stats, Rcpp,
+RcppArmadillo, RcppParallel, MASS, Rdpack, and opencltools. These packages are
+not bundled in nmathopencl; their authorship and copyright are governed by
+their own package metadata and licenses. Host and workstation OpenCL diagnostics
+beyond compile-time probes in nmathopencl are provided by opencltools.
+
+Suggested Package glmbayes
+--------------------------
+
+Bayesian GLM workflows that consume these OpenCL sources may additionally use
+the glmbayes package (Suggests). glmbayes maintains its own copyright and
+citation metadata; see that package's inst/CITATION and inst/COPYRIGHTS.

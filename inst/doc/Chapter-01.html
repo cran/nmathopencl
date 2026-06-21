@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-06-11" />
+
+<title>Chapter 01: Setting Up OpenCL and Enabling GPU Acceleration</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter 01: Setting Up OpenCL and Enabling
+GPU Acceleration</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-06-11</h4>
+
+
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p><code>nmathopencl</code> can run in two modes:</p>
+<ul>
+<li><strong>CPU-only mode</strong>: all distribution functions fall back
+to <code>stats::</code> or base-R equivalents. No special setup is
+needed. This is the default when the package is installed from a
+prebuilt binary (e.g., from CRAN or R-universe). Most downstream use of
+the nmath <code>.cl</code> library does not require a GPU-enabled build
+of <code>nmathopencl</code> itself; the <code>.cl</code> source files
+are always present on disk regardless.</li>
+<li><strong>GPU-accelerated mode</strong>: kernels execute on an OpenCL
+device. This requires compiling the package from source on a machine
+with an OpenCL SDK installed. It is necessary when you want to use the
+exported <code>*_opencl</code> wrappers to validate GPU pipeline
+operation, or when your downstream package links directly against the
+nmathopencl kernel runners.</li>
+</ul>
+<p>This vignette describes how to read the attach-time advisory,
+understand the <strong><code>opencltools</code></strong> dependency, and
+enable OpenCL specifically for
+<strong><code>nmathopencl</code></strong>. Detailed per-OS driver,
+header, and ICD instructions are maintained in
+<strong><code>opencltools</code></strong> vignette <strong>Chapter
+01</strong>; end-user GPU setup notes also appear in <strong>Chapter
+02</strong>.</p>
+</div>
+<div id="when-you-load-nmathopencl" class="section level2">
+<h2>When you load nmathopencl</h2>
+<p>Attaching the package in an interactive session may print a short
+<strong><code>packageStartupMessage</code></strong>. This is
+intentional: it gives a first-pass diagnosis of whether GPU acceleration
+is <em>feasible</em> on your machine and whether <em>this install</em>
+was compiled with OpenCL support.</p>
+<p>CPU execution is always available. The message appears only when
+there is a plausible GPU/OpenCL path that is not yet enabled in the
+installed binaries, or when the host stack looks incomplete. When both
+<strong><code>nmathopencl</code></strong> and
+<strong><code>opencltools</code></strong> were built with OpenCL, attach
+is silent.</p>
+<p>To suppress the message in scripts or CI:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">options</span>(<span class="at">nmathopencl.quiet_opencl_startup =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<p>Further detail: <code>?gpu_diagnostics</code>,
+<code>?nmathopencl-package</code>, this vignette, and
+<code>vignette(&quot;Chapter-12&quot;, package = &quot;nmathopencl&quot;)</code>.</p>
+<div id="what-the-message-means" class="section level3">
+<h3>What the message means</h3>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="48%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Situation</th>
+<th>Typical message gist</th>
+<th>Next step</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><code>opencltools</code> OK, <code>nmathopencl</code>
+not</strong></td>
+<td>opencltools was built with OpenCL but nmathopencl was not</td>
+<td><a href="#step-3-if-opencltools-is-enabled-but-nmathopencl-is-not">Step
+3</a> — reinstall nmathopencl from source</td>
+</tr>
+<tr class="even">
+<td><strong><code>nmathopencl</code> OK, <code>opencltools</code>
+not</strong></td>
+<td>nmathopencl was built with OpenCL but opencltools was not</td>
+<td>Reinstall <strong>opencltools</strong> from source (unusual; it is
+an Imports dependency)</td>
+</tr>
+<tr class="odd">
+<td><strong>Neither OK, headers/runtime detected</strong></td>
+<td>Reinstall both packages from source</td>
+<td><a href="#step-2-if-opencl-is-not-enabled-at-all">Step 2</a> then <a href="#step-3-if-opencltools-is-enabled-but-nmathopencl-is-not">Step
+3</a></td>
+</tr>
+<tr class="even">
+<td><strong>Neither OK, GPU present, stack incomplete</strong></td>
+<td>Install or repair drivers, ICD, headers</td>
+<td><a href="#step-2-if-opencl-is-not-enabled-at-all">Step 2</a> —
+follow <strong>opencltools</strong> Chapter 01</td>
+</tr>
+<tr class="odd">
+<td><strong>Neither OK, no GPU/stack</strong></td>
+<td>No suitable GPU/OpenCL environment</td>
+<td>CPU-only is expected; GPU setup is optional</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="opencltools-as-imported-dependency" class="section level2">
+<h2>opencltools as imported dependency</h2>
+<p><strong><code>nmathopencl</code> lists <code>opencltools</code> in
+<code>Imports</code></strong> (&gt;= 0.8.0). It is installed
+automatically with nmathopencl and provides two categories of
+functionality:</p>
+<ul>
+<li><strong>Host/runtime diagnostics</strong> — GPU vendor detection,
+driver and ICD checks, <code>verify_opencl_runtime()</code>, and related
+probes. These are <strong>not</strong> re-exported; call
+<code>opencltools::…</code> directly.</li>
+<li><strong>Kernel-library authoring tools</strong> — dependency
+tagging, sorting, and subset loading
+(<code>load_library_for_kernel</code>,
+<code>extract_library_subset</code>, …). These <strong>are</strong>
+re-exported from nmathopencl for downstream kernel authors.</li>
+</ul>
+<p>Work through <strong>opencltools</strong> first when enabling OpenCL:
+fix the host environment and confirm
+<code>opencltools::has_opencl()</code> before reinstalling nmathopencl
+from source. Useful <strong>opencltools</strong> vignettes:</p>
+<table>
+<colgroup>
+<col width="58%" />
+<col width="41%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Vignette</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>vignette(&quot;Chapter-01&quot;, package = &quot;opencltools&quot;)</code></td>
+<td>Platform install: drivers, headers, ICD, verification</td>
+</tr>
+<tr class="even">
+<td><code>vignette(&quot;Chapter-02&quot;, package = &quot;opencltools&quot;)</code></td>
+<td>Assembling kernel programs from ported library shards</td>
+</tr>
+<tr class="odd">
+<td><code>vignette(&quot;Chapter-03&quot;, package = &quot;opencltools&quot;)</code></td>
+<td>Kernel runners and wrappers (the glmbayes pattern)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="what-compiling-with-opencl-means" class="section level2">
+<h2>What “compiling with OpenCL” means</h2>
+<p>At compile time, each package’s <code>configure</code> script detects
+whether <code>CL/cl.h</code> is present and a linkable
+<code>OpenCL</code> library exists. If both are found, it sets
+<code>-DUSE_OPENCL</code> and links against <code>-lOpenCL</code>. All
+OpenCL-specific C++ code is guarded by <code>#ifdef USE_OPENCL</code>,
+so the package compiles cleanly without OpenCL headers.</p>
+<p>A binary built <strong>without</strong> <code>USE_OPENCL</code> is a
+fully valid CPU-only package.
+<strong><code>nmathopencl_has_opencl()</code></strong> returns
+<code>FALSE</code> and every <code>*_opencl</code> wrapper silently uses
+its <code>stats::</code> fallback.</p>
+<p>Because <strong><code>nmathopencl</code> Imports
+<code>opencltools</code></strong>, both packages must be built with
+OpenCL for the exported <code>*_opencl</code> wrappers to dispatch to a
+GPU. The attach message compares <code>nmathopencl_has_opencl()</code>
+(nmathopencl) and <code>opencltools::has_opencl()</code> (opencltools)
+and tells you which reinstall is needed.</p>
+</div>
+<div id="enabling-opencl-for-nmathopencl" class="section level2">
+<h2>Enabling OpenCL for nmathopencl</h2>
+<p>Work through these steps in order.</p>
+<div id="step-1-read-the-load-message" class="section level3">
+<h3>Step 1: Read the load message</h3>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(nmathopencl)</span></code></pre></div>
+<p>If attach is silent and <code>nmathopencl_has_opencl()</code> returns
+<code>TRUE</code>, you are done — skip to <a href="#verifying-the-setup">Verifying the setup</a>. Otherwise, use the
+table above or continue to Step 2 or 3.</p>
+</div>
+<div id="step-2-if-opencl-is-not-enabled-at-all" class="section level3">
+<h3>Step 2: If OpenCL is not enabled at all</h3>
+<p>When <code>opencltools::has_opencl()</code> and
+<code>nmathopencl_has_opencl()</code> are both <code>FALSE</code>, the
+host stack or compile flags are missing for both packages.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">has_opencl</span>()   <span class="co"># opencltools build flag</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">nmathopencl_has_opencl</span>()                <span class="co"># nmathopencl build flag</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">diagnose_glmbayes</span>()   <span class="co"># host/runtime report</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="fu">nmathopencl_has_opencl</span>()           <span class="co"># nmathopencl compile-time flag</span></span></code></pre></div>
+<p>Follow
+<strong><code>vignette(&quot;Chapter-01&quot;, package = &quot;opencltools&quot;)</code></strong>
+for drivers, OpenCL headers, the ICD loader/runtime, and building
+<strong>opencltools</strong> from source until
+<code>opencltools::has_opencl()</code> is <code>TRUE</code>.</p>
+<p>Enabling GPU acceleration requires three independent host
+components:</p>
+<table>
+<colgroup>
+<col width="24%" />
+<col width="37%" />
+<col width="37%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>What it provides</th>
+<th>Where to get it</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>GPU driver</strong></td>
+<td>Exposes the hardware to the OS</td>
+<td>Vendor website or OS package manager</td>
+</tr>
+<tr class="even">
+<td><strong>OpenCL headers</strong> (<code>CL/cl.h</code>)</td>
+<td>Needed at compile time</td>
+<td>GPU vendor SDK or <code>opencl-headers</code> package</td>
+</tr>
+<tr class="odd">
+<td><strong>OpenCL ICD loader / runtime</strong></td>
+<td>Needed at runtime (<code>OpenCL.dll</code> /
+<code>libOpenCL.so</code>)</td>
+<td>Installed with driver or as <code>ocl-icd-libopencl1</code></td>
+</tr>
+</tbody>
+</table>
+<p>All three must be present. Having headers but not the loader (or vice
+versa) is the most common failure mode. Platform-specific install
+commands are maintained in <strong>opencltools</strong> Chapter 01.</p>
+</div>
+<div id="step-3-if-opencltools-is-enabled-but-nmathopencl-is-not" class="section level3">
+<h3>Step 3: If opencltools is enabled but nmathopencl is not</h3>
+<p>When <code>opencltools::has_opencl()</code> is <code>TRUE</code> but
+<code>nmathopencl_has_opencl()</code> is <code>FALSE</code>, the host
+environment is likely fine; <strong>nmathopencl</strong> was installed
+from a CPU binary or compiled before the SDK was present. Reinstall
+<strong>nmathopencl</strong> from source:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># From CRAN or R-universe:</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;nmathopencl&quot;</span>, <span class="at">type =</span> <span class="st">&quot;source&quot;</span>)</span></code></pre></div>
+<p>The <code>configure</code> / <code>configure.win</code> script runs
+automatically and prints whether <code>USE_OPENCL</code> was activated.
+Then confirm:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">nmathopencl_has_opencl</span>()</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+</div>
+</div>
+<div id="verifying-the-setup" class="section level2">
+<h2>Verifying the setup</h2>
+<p>After Steps 2–3, confirm the full stack:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">library</span>(nmathopencl)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co"># nmathopencl compile-time flag</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">nmathopencl_has_opencl</span>()</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co"># opencltools compile-time flag (imported dependency)</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">has_opencl</span>()</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co"># Host GPU inventory via opencltools (not the compile flag)</span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">gpu_names</span>()</span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt; [1] &quot;NVIDIA GeForce RTX 4090&quot;</span></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co"># Host/runtime diagnostic report (opencltools)</span></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">diagnose_glmbayes</span>()</span></code></pre></div>
+<p><code>opencltools::diagnose_glmbayes()</code> runs a layered host
+check (environment, GPU vendors, drivers, OpenCL headers and ICD,
+Linux/WSL runtime probe, PATH / <code>LD_LIBRARY_PATH</code>). Pair it
+with <code>nmathopencl_has_opencl()</code> for this package’s
+compile-time OpenCL build flag. On Windows, the Linux/WSL runtime probe
+is skipped; rely on driver and ICD checks instead.</p>
+<div id="validating-gpu-calls-with-the-exported-wrappers" class="section level3">
+<h3>Validating GPU calls with the exported wrappers</h3>
+<p>Once <code>nmathopencl_has_opencl()</code> is <code>TRUE</code>, the
+exported <code>*_opencl</code> functions dispatch to the GPU. These are
+most useful as a <strong>validation tool</strong>: running them on large
+vectors confirms the OpenCL pipeline is working end-to-end before you
+invest time in a downstream package.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(<span class="fl">1e7</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">system.time</span>(<span class="fu">dnorm_opencl</span>(x, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>))</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="fu">system.time</span>(<span class="fu">dnorm</span>(x, <span class="at">mean =</span> <span class="dv">0</span>, <span class="at">sd =</span> <span class="dv">1</span>))</span></code></pre></div>
+<p>Use large vectors (millions of elements) for this test. For small to
+moderate vectors the GPU will often be <em>slower</em> than the CPU due
+to the overhead of kernel compilation and host-to-device data transfer.
+That is expected behavior, not a bug. The real-world acceleration from
+using the <code>nmathopencl</code> nmath library happens when
+statistical math calls are embedded <em>inside</em> a downstream
+package’s GPU kernels, where they share device memory with the rest of
+the computation and avoid the round-trip transfer entirely.</p>
+<p>When OpenCL is available, the default <code>fallback = FALSE</code>
+surfaces kernel errors rather than silently falling back, which helps
+debugging during development.</p>
+</div>
+</div>
+<div id="troubleshooting-common-failures" class="section level2">
+<h2>Troubleshooting common failures</h2>
+<div id="nmathopencl_has_opencl-returns-false-after-driver-installation" class="section level3">
+<h3><code>nmathopencl_has_opencl()</code> returns <code>FALSE</code>
+after driver installation</h3>
+<p>The package was compiled before the SDK was installed, or from a
+prebuilt binary. If <code>opencltools::has_opencl()</code> is already
+<code>TRUE</code>, go to <a href="#step-3-if-opencltools-is-enabled-but-nmathopencl-is-not">Step
+3</a>. Otherwise, fix the host stack first (<a href="#step-2-if-opencl-is-not-enabled-at-all">Step 2</a>).</p>
+</div>
+<div id="compilation-fails-with-clcl.h-no-such-file-or-directory" class="section level3">
+<h3>Compilation fails with
+<code>CL/cl.h: No such file or directory</code></h3>
+<p>The OpenCL headers are not on the compiler include path. See
+<strong><code>vignette(&quot;Chapter-01&quot;, package = &quot;opencltools&quot;)</code></strong>
+and, if necessary, set <code>OPENCL_HOME</code> or
+<code>OPENCL_SDK</code> to the SDK root before installing.</p>
+</div>
+<div id="runtime-error-clgetplatformids-cl_platform_not_found_khr" class="section level3">
+<h3>Runtime error:
+<code>clGetPlatformIDs: CL_PLATFORM_NOT_FOUND_KHR</code></h3>
+<p>Headers were found at compile time but no runtime platform is
+available. Check (details in <strong>opencltools</strong> Chapter
+01):</p>
+<ul>
+<li>Is the GPU driver installed and up to date?</li>
+<li>Is the ICD file present (e.g.,
+<code>/etc/OpenCL/vendors/nvidia.icd</code> on Linux)?</li>
+<li>On WSL2: is the NVIDIA driver installed in Windows, not just inside
+WSL?</li>
+</ul>
+<p>Use <code>opencltools::verify_opencl_runtime()</code> for a
+programmatic probe.</p>
+</div>
+<div id="path-warnings-from-opencltoolsdiagnose_glmbayes" class="section level3">
+<h3><code>PATH</code> warnings from
+<code>opencltools::diagnose_glmbayes()</code></h3>
+<p>On Windows, the CUDA Toolkit bin directory may need to be in
+<strong><code>PATH</code></strong> so that <code>OpenCL.dll</code> is
+found at runtime. The diagnostic report lists any missing entries;
+fixing them via system settings or your shell profile is the recommended
+approach. Advanced developers may use
+<code>opencltools::add_to_path_windows()</code> and related helpers
+directly — see <code>?opencltools::add_to_path</code>.</p>
+</div>
+</div>
+<div id="for-package-developers-next-steps" class="section level2">
+<h2>For package developers: next steps</h2>
+<p>Once OpenCL is working for <strong><code>nmathopencl</code></strong>
+itself, the next step is adding <code>USE_OPENCL</code> and
+<code>nmathopencl_has_opencl()</code> to your own downstream package so
+that it also builds cleanly on CRAN. See
+<strong><code>vignette(&quot;Chapter-02&quot;, package = &quot;nmathopencl&quot;)</code></strong>
+for the <code>use_opencl_configure()</code> /
+<code>port_to_opencl_configure()</code> workflow.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

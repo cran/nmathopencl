@@ -1,0 +1,264 @@
+---
+title: "Chapter 01: Setting Up OpenCL and Enabling GPU Acceleration"
+author: "Kjell Nygren"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Chapter 01: Setting Up OpenCL and Enabling GPU Acceleration}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Overview
+
+`nmathopencl` can run in two modes:
+
+- **CPU-only mode**: all distribution functions fall back to `stats::` or
+  base-R equivalents. No special setup is needed. This is the default when
+  the package is installed from a prebuilt binary (e.g., from CRAN or
+  R-universe). Most downstream use of the nmath `.cl` library does not require
+  a GPU-enabled build of `nmathopencl` itself; the `.cl` source files are
+  always present on disk regardless.
+- **GPU-accelerated mode**: kernels execute on an OpenCL device. This
+  requires compiling the package from source on a machine with an OpenCL
+  SDK installed. It is necessary when you want to use the exported `*_opencl`
+  wrappers to validate GPU pipeline operation, or when your downstream package
+  links directly against the nmathopencl kernel runners.
+
+This vignette describes how to read the attach-time advisory, understand the
+**`opencltools`** dependency, and enable OpenCL specifically for
+**`nmathopencl`**. Detailed per-OS driver, header, and ICD instructions are
+maintained in **`opencltools`** vignette **Chapter 01**; end-user GPU setup
+notes also appear in **Chapter 02**.
+
+## When you load nmathopencl
+
+Attaching the package in an interactive session may print a short
+**`packageStartupMessage`**. This is intentional: it gives a first-pass
+diagnosis of whether GPU acceleration is *feasible* on your machine and
+whether *this install* was compiled with OpenCL support.
+
+CPU execution is always available. The message appears only when there is
+a plausible GPU/OpenCL path that is not yet enabled in the installed
+binaries, or when the host stack looks incomplete. When both **`nmathopencl`**
+and **`opencltools`** were built with OpenCL, attach is silent.
+
+To suppress the message in scripts or CI:
+
+```{r, eval = FALSE}
+options(nmathopencl.quiet_opencl_startup = TRUE)
+```
+
+Further detail: `?gpu_diagnostics`, `?nmathopencl-package`, this vignette,
+and `vignette("Chapter-12", package = "nmathopencl")`.
+
+### What the message means
+
+| Situation | Typical message gist | Next step |
+|-----------|---------------------|-----------|
+| **`opencltools` OK, `nmathopencl` not** | opencltools was built with OpenCL but nmathopencl was not | [Step 3](#step-3-if-opencltools-is-enabled-but-nmathopencl-is-not) --- reinstall nmathopencl from source |
+| **`nmathopencl` OK, `opencltools` not** | nmathopencl was built with OpenCL but opencltools was not | Reinstall **opencltools** from source (unusual; it is an Imports dependency) |
+| **Neither OK, headers/runtime detected** | Reinstall both packages from source | [Step 2](#step-2-if-opencl-is-not-enabled-at-all) then [Step 3](#step-3-if-opencltools-is-enabled-but-nmathopencl-is-not) |
+| **Neither OK, GPU present, stack incomplete** | Install or repair drivers, ICD, headers | [Step 2](#step-2-if-opencl-is-not-enabled-at-all) --- follow **opencltools** Chapter 01 |
+| **Neither OK, no GPU/stack** | No suitable GPU/OpenCL environment | CPU-only is expected; GPU setup is optional |
+
+## opencltools as imported dependency
+
+**`nmathopencl` lists `opencltools` in `Imports`** (>= 0.8.0). It is installed
+automatically with nmathopencl and provides two categories of functionality:
+
+- **Host/runtime diagnostics** --- GPU vendor detection, driver and ICD checks,
+  `verify_opencl_runtime()`, and related probes. These are **not** re-exported;
+  call `opencltools::…` directly.
+- **Kernel-library authoring tools** --- dependency tagging, sorting, and subset
+  loading (`load_library_for_kernel`, `extract_library_subset`, ...). These
+  **are** re-exported from nmathopencl for downstream kernel authors.
+
+Work through **opencltools** first when enabling OpenCL: fix the host environment
+and confirm `opencltools::has_opencl()` before reinstalling nmathopencl from
+source. Useful **opencltools** vignettes:
+
+| Vignette | Topic |
+|----------|-------|
+| `vignette("Chapter-01", package = "opencltools")` | Platform install: drivers, headers, ICD, verification |
+| `vignette("Chapter-02", package = "opencltools")` | Assembling kernel programs from ported library shards |
+| `vignette("Chapter-03", package = "opencltools")` | Kernel runners and wrappers (the glmbayes pattern) |
+
+## What "compiling with OpenCL" means
+
+At compile time, each package's `configure` script detects whether
+`CL/cl.h` is present and a linkable `OpenCL` library exists. If both are
+found, it sets `-DUSE_OPENCL` and links against `-lOpenCL`. All OpenCL-specific
+C++ code is guarded by `#ifdef USE_OPENCL`, so the package compiles cleanly
+without OpenCL headers.
+
+A binary built **without** `USE_OPENCL` is a fully valid CPU-only package.
+**`nmathopencl_has_opencl()`** returns `FALSE` and every `*_opencl` wrapper silently uses
+its `stats::` fallback.
+
+Because **`nmathopencl` Imports `opencltools`**, both packages must be built
+with OpenCL for the exported `*_opencl` wrappers to dispatch to a GPU. The
+attach message compares `nmathopencl_has_opencl()` (nmathopencl) and
+`opencltools::has_opencl()` (opencltools) and tells you which reinstall is
+needed.
+
+## Enabling OpenCL for nmathopencl
+
+Work through these steps in order.
+
+### Step 1: Read the load message
+
+```{r, eval = FALSE}
+library(nmathopencl)
+```
+
+If attach is silent and `nmathopencl_has_opencl()` returns `TRUE`, you are done --- skip
+to [Verifying the setup](#verifying-the-setup). Otherwise, use the table above
+or continue to Step 2 or 3.
+
+### Step 2: If OpenCL is not enabled at all
+
+When `opencltools::has_opencl()` and `nmathopencl_has_opencl()` are both `FALSE`, the host
+stack or compile flags are missing for both packages.
+
+```{r, eval = FALSE}
+opencltools::has_opencl()   # opencltools build flag
+nmathopencl_has_opencl()                # nmathopencl build flag
+opencltools::diagnose_glmbayes()   # host/runtime report
+nmathopencl_has_opencl()           # nmathopencl compile-time flag
+```
+
+Follow **`vignette("Chapter-01", package = "opencltools")`** for drivers,
+OpenCL headers, the ICD loader/runtime, and building **opencltools** from
+source until `opencltools::has_opencl()` is `TRUE`.
+
+Enabling GPU acceleration requires three independent host components:
+
+| Component | What it provides | Where to get it |
+|-----------|-----------------|-----------------|
+| **GPU driver** | Exposes the hardware to the OS | Vendor website or OS package manager |
+| **OpenCL headers** (`CL/cl.h`) | Needed at compile time | GPU vendor SDK or `opencl-headers` package |
+| **OpenCL ICD loader / runtime** | Needed at runtime (`OpenCL.dll` / `libOpenCL.so`) | Installed with driver or as `ocl-icd-libopencl1` |
+
+All three must be present. Having headers but not the loader (or vice versa) is
+the most common failure mode. Platform-specific install commands are maintained
+in **opencltools** Chapter 01.
+
+### Step 3: If opencltools is enabled but nmathopencl is not
+
+When `opencltools::has_opencl()` is `TRUE` but `nmathopencl_has_opencl()` is `FALSE`, the
+host environment is likely fine; **nmathopencl** was installed from a CPU binary
+or compiled before the SDK was present. Reinstall **nmathopencl** from source:
+
+```{r, eval = FALSE}
+# From CRAN or R-universe:
+install.packages("nmathopencl", type = "source")
+```
+
+The `configure` / `configure.win` script runs automatically and prints whether
+`USE_OPENCL` was activated. Then confirm:
+
+```{r, eval = FALSE}
+nmathopencl_has_opencl()
+#> [1] TRUE
+```
+
+## Verifying the setup
+
+After Steps 2--3, confirm the full stack:
+
+```{r, eval = FALSE}
+library(nmathopencl)
+
+# nmathopencl compile-time flag
+nmathopencl_has_opencl()
+#> [1] TRUE
+
+# opencltools compile-time flag (imported dependency)
+opencltools::has_opencl()
+#> [1] TRUE
+
+# Host GPU inventory via opencltools (not the compile flag)
+opencltools::gpu_names()
+#> [1] "NVIDIA GeForce RTX 4090"
+
+# Host/runtime diagnostic report (opencltools)
+opencltools::diagnose_glmbayes()
+```
+
+`opencltools::diagnose_glmbayes()` runs a layered host check (environment, GPU
+vendors, drivers, OpenCL headers and ICD, Linux/WSL runtime probe, PATH /
+`LD_LIBRARY_PATH`). Pair it with `nmathopencl_has_opencl()` for this package's
+compile-time OpenCL build flag. On Windows, the Linux/WSL runtime probe is
+skipped; rely on driver and ICD checks instead.
+
+### Validating GPU calls with the exported wrappers
+
+Once `nmathopencl_has_opencl()` is `TRUE`, the exported `*_opencl` functions dispatch to
+the GPU. These are most useful as a **validation tool**: running them on large
+vectors confirms the OpenCL pipeline is working end-to-end before you invest
+time in a downstream package.
+
+```{r, eval = FALSE}
+x <- rnorm(1e7)
+system.time(dnorm_opencl(x, mean = 0, sd = 1))
+system.time(dnorm(x, mean = 0, sd = 1))
+```
+
+Use large vectors (millions of elements) for this test. For small to
+moderate vectors the GPU will often be *slower* than the CPU due to the
+overhead of kernel compilation and host-to-device data transfer. That is
+expected behavior, not a bug. The real-world acceleration from using the
+`nmathopencl` nmath library happens when statistical math calls are embedded
+*inside* a downstream package's GPU kernels, where they share device memory
+with the rest of the computation and avoid the round-trip transfer entirely.
+
+When OpenCL is available, the default `fallback = FALSE` surfaces kernel
+errors rather than silently falling back, which helps debugging during
+development.
+
+## Troubleshooting common failures
+
+### `nmathopencl_has_opencl()` returns `FALSE` after driver installation
+
+The package was compiled before the SDK was installed, or from a prebuilt
+binary. If `opencltools::has_opencl()` is already `TRUE`, go to
+[Step 3](#step-3-if-opencltools-is-enabled-but-nmathopencl-is-not).
+Otherwise, fix the host stack first ([Step 2](#step-2-if-opencl-is-not-enabled-at-all)).
+
+### Compilation fails with `CL/cl.h: No such file or directory`
+
+The OpenCL headers are not on the compiler include path. See
+**`vignette("Chapter-01", package = "opencltools")`** and, if necessary, set
+`OPENCL_HOME` or `OPENCL_SDK` to the SDK root before installing.
+
+### Runtime error: `clGetPlatformIDs: CL_PLATFORM_NOT_FOUND_KHR`
+
+Headers were found at compile time but no runtime platform is available.
+Check (details in **opencltools** Chapter 01):
+
+- Is the GPU driver installed and up to date?
+- Is the ICD file present (e.g., `/etc/OpenCL/vendors/nvidia.icd` on Linux)?
+- On WSL2: is the NVIDIA driver installed in Windows, not just inside WSL?
+
+Use `opencltools::verify_opencl_runtime()` for a programmatic probe.
+
+### `PATH` warnings from `opencltools::diagnose_glmbayes()`
+
+On Windows, the CUDA Toolkit bin directory may need to be in **`PATH`** so that
+`OpenCL.dll` is found at runtime. The diagnostic report lists any missing
+entries; fixing them via system settings or your shell profile is the
+recommended approach. Advanced developers may use `opencltools::add_to_path_windows()`
+and related helpers directly --- see `?opencltools::add_to_path`.
+
+## For package developers: next steps
+
+Once OpenCL is working for **`nmathopencl`** itself, the next step is
+adding `USE_OPENCL` and `nmathopencl_has_opencl()` to your own downstream package so
+that it also builds cleanly on CRAN. See
+**`vignette("Chapter-02", package = "nmathopencl")`** for the
+`use_opencl_configure()` / `port_to_opencl_configure()` workflow.

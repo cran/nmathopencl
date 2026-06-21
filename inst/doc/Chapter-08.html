@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-06-11" />
+
+<title>Chapter 08: Kernel Loading — load_kernel_source and load_kernel_library</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter 08: Kernel Loading —
+load_kernel_source and load_kernel_library</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-06-11</h4>
+
+
+
+<div id="the-assembly-problem" class="section level2">
+<h2>The assembly problem</h2>
+<p>OpenCL compiles a <strong>single string</strong> of source code for
+each program. The string must be self-contained: all functions used by
+the kernel must be defined in the same string, in order, before they are
+called. There are no separate compilation units and no linker.</p>
+<p>When a kernel needs <code>dnorm4</code>, and <code>dnorm4</code>
+itself needs <code>R_D__0</code> and <code>R_finite</code>, those
+definitions must precede <code>dnorm4</code> in the string, which must
+precede the kernel body. <strong>opencltools</strong> provides two R
+functions that assemble and sort source components; use
+<code>package = &quot;nmathopencl&quot;</code> for this package’s
+<code>inst/cl/</code> tree.</p>
+</div>
+<div id="opencltoolsload_kernel_source" class="section level2">
+<h2><code>opencltools::load_kernel_source()</code></h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">load_kernel_source</span>(relative_path, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span></code></pre></div>
+<p>Reads and returns the contents of a single <code>.cl</code> file from
+<code>inst/cl/</code> inside the named package. The
+<code>relative_path</code> is relative to <code>inst/cl/</code>:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Load the dnorm kernel entry-point file</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>kernel_src <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_source</span>(<span class="st">&quot;src/dnorm_kernel.cl&quot;</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>                                              <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co"># Load a custom kernel from another package&#39;s inst/cl/</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>my_kernel   <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_source</span>(<span class="st">&quot;ex_glmbayes_src/f2_f3_binomial_logit.cl&quot;</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>                                   <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span></code></pre></div>
+<p>The returned character string can be concatenated with a library
+string and passed to the C++ runner.</p>
+</div>
+<div id="opencltoolsload_kernel_library" class="section level2">
+<h2><code>opencltools::load_kernel_library()</code></h2>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">load_kernel_library</span>(subdir, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>, <span class="at">verbose =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+<p>Reads <strong>all</strong> <code>.cl</code> files from
+<code>inst/cl/&lt;subdir&gt;/</code>, parses the <code>@provides</code>
+/ <code>@depends</code> annotations in each file, performs a topological
+sort, and returns a single concatenated source string with files in
+dependency-correct order.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Load the complete nmath library (all ~180 files)</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>nmath_src <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_library</span>(<span class="st">&quot;nmath&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co"># Load a smaller subset pre-curated for glmbayes kernels</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>nmath_glm <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_library</span>(<span class="st">&quot;ex_glmbayes_nmath&quot;</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>                                              <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co"># Load with diagnostic output to trace the sort order</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>nmath_src <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_library</span>(<span class="st">&quot;nmath&quot;</span>,</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>                                              <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>                                              <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+</div>
+<div id="the-annotation-format" class="section level2">
+<h2>The annotation format</h2>
+<p>For <code>opencltools::load_kernel_library()</code> to sort
+correctly, every <code>.cl</code> file in the subdirectory must begin
+with an annotation block:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co">// @provides: symbol1, symbol2</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="co">// @depends:  fileA, fileB</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">// @includes: library_name</span></span></code></pre></div>
+<table>
+<colgroup>
+<col width="20%" />
+<col width="44%" />
+<col width="36%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Tag</th>
+<th>Required?</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>@provides</code></td>
+<td>Yes</td>
+<td>Comma-separated list of function (or symbol) names defined in this
+file</td>
+</tr>
+<tr class="even">
+<td><code>@depends</code></td>
+<td>Yes (may be empty)</td>
+<td>Comma-separated list of <code>.cl</code> filenames (without
+extension) that must appear earlier in the output</td>
+</tr>
+<tr class="odd">
+<td><code>@includes</code></td>
+<td>Optional</td>
+<td>Library grouping label; used for diagnostics only</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rules for <code>@depends</code>:</strong></p>
+<ul>
+<li>List only <strong>direct</strong> dependencies, not the full
+transitive set. The resolver computes the transitive closure
+automatically.</li>
+<li>Every non-header file must list the library header file (the file
+whose basename matches the subdirectory name) in <code>@depends</code>,
+so the header is always loaded first.</li>
+<li>If a file has no dependencies at all (i.e., it is the library
+header), leave <code>@depends</code> empty or omit the tag.</li>
+</ul>
+<p>Example for <code>dgamma.cl</code>:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co">// @provides: dgamma</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">// @depends:  nmath, dpois, lgamma</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">// @includes: nmath</span></span></code></pre></div>
+<p>This tells the resolver: emit <code>nmath.cl</code>,
+<code>dpois.cl</code>, and <code>lgamma.cl</code> before
+<code>dgamma.cl</code>. The resolver handles those files’ own
+dependencies recursively.</p>
+</div>
+<div id="the-topological-sort-algorithm" class="section level2">
+<h2>The topological sort algorithm</h2>
+<p><code>opencltools::load_kernel_library()</code> uses a
+straightforward iterative topological sort:</p>
+<ol style="list-style-type: decimal">
+<li>Parse all <code>.cl</code> files and extract their
+<code>@provides</code> and <code>@depends</code> tags.</li>
+<li>Build a set of “unsorted” files. Initialize the “sorted” set to
+empty.</li>
+<li>In each pass, find every unsorted file whose <code>@depends</code>
+entries are all already in the sorted set. Emit those files and add them
+to the sorted set.</li>
+<li>Repeat until all files are sorted or no progress is made.</li>
+<li>If no progress is made but unsorted files remain, throw:
+<code>&quot;Dependency sort failed: unresolved dependencies remain.&quot;</code></li>
+</ol>
+<p>Files with an empty <code>@depends</code> list are emitted first
+(pass 1). These are always the library header files.</p>
+<div id="verbose-output" class="section level3">
+<h3>Verbose output</h3>
+<p>When <code>verbose = TRUE</code>, the function prints each pass of
+the sort:</p>
+<pre><code>Pass 1: emitting nmath.cl, Rmath.cl, dpq.cl
+Pass 2: emitting chebyshev.cl, cospi.cl, fmax2.cl, gammalims.cl
+Pass 3: emitting lgammacor.cl
+Pass 4: emitting lgamma.cl, gamma.cl
+...</code></pre>
+<p>This is invaluable for debugging missing or circular
+<code>@depends</code> tags.</p>
+</div>
+</div>
+<div id="cycle-detection-and-breaking" class="section level2">
+<h2>Cycle detection and breaking</h2>
+<p>If file A lists file B in its <code>@depends</code> and file B lists
+file A, the resolver will detect this on the first pass where neither
+can be promoted, and throw an error. If <code>verbose = TRUE</code>, it
+prints the stuck files before throwing.</p>
+<p>The standard fix is to split one of the mutually dependent files into
+two:</p>
+<ul>
+<li>A “cycle-free” fragment containing functions that make no forward
+call.</li>
+<li>A “cycle-dependent” fragment containing functions that call the
+cycle-free fragment.</li>
+<li>A <code>refactored.cl</code> that provides forward declarations for
+any symbols referenced before they are defined.</li>
+</ul>
+<p>Chapter 04 describes the three specific cycles in the nmath library
+and how they are resolved.</p>
+</div>
+<div id="assembling-a-complete-program" class="section level2">
+<h2>Assembling a complete program</h2>
+<p>A complete OpenCL program string is assembled by concatenating
+library and kernel sources in order:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">library</span>(nmathopencl)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co"># 1. Load the nmath library (sorted automatically)</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>nmath_src  <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_library</span>(<span class="st">&quot;nmath&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co"># 2. Load the kernel entry-point</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>kernel_src <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_source</span>(<span class="st">&quot;src/dnorm_kernel.cl&quot;</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>                                              <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co"># 3. Concatenate into a single program string</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>program    <span class="ot">&lt;-</span> <span class="fu">paste</span>(nmath_src, kernel_src, <span class="at">sep =</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<p>This <code>program</code> string is then passed to the C++ runner
+(see Chapter 09).</p>
+</div>
+<div id="using-libraries-from-another-package" class="section level2">
+<h2>Using libraries from another package</h2>
+<p>The <code>package</code> argument tells
+<code>opencltools::load_kernel_source()</code> and
+<code>opencltools::load_kernel_library()</code> which package’s
+<code>inst/cl/</code> to look in:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Load the curated nmath subset shipped inside nmathopencl</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co"># for use by a downstream package&#39;s kernels</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>nmath_sub <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_library</span>(<span class="st">&quot;ex_glmbayes_nmath&quot;</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>                                  <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co"># Load a custom kernel from the same downstream package</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>my_kernel <span class="ot">&lt;-</span> opencltools<span class="sc">::</span><span class="fu">load_kernel_source</span>(<span class="st">&quot;ex_glmbayes_src/f2_f3_binomial_logit.cl&quot;</span>,</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>                                 <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>program <span class="ot">&lt;-</span> <span class="fu">paste</span>(nmath_sub, my_kernel, <span class="at">sep =</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<p>This is exactly the pattern used by <code>f2_f3_opencl()</code> in
+the <code>ex_glmbayes</code> example (see Chapter 10).</p>
+</div>
+<div id="dependency-index-faster-kernel-specific-loading" class="section level2">
+<h2>Dependency index — faster, kernel-specific loading</h2>
+<p><code>opencltools::load_kernel_library()</code> always sorts and
+loads <strong>all</strong> files in the subdirectory. For a large
+library like <code>nmath</code> (137 files) this is thorough but
+wasteful when only a small subset is needed for a specific kernel.</p>
+<p><code>nmathopencl</code> therefore ships a pre-built dependency index
+alongside every curated library subdirectory. The index encodes the full
+transitive dependency map and the global load order, enabling two
+important optimizations:</p>
+<ol style="list-style-type: decimal">
+<li><strong><code>load_library_for_kernel()</code> (R)</strong> — loads
+only the files required by one specific kernel, with no sort at
+runtime.</li>
+<li><strong><code>load_library_for_kernel()</code> (C++)</strong> — the
+same function implemented entirely in C++, suitable for use inside Rcpp
+kernel wrappers.</li>
+</ol>
+<div id="building-the-index-write_kernel_dependency_index" class="section level3">
+<h3>Building the index —
+<code>write_kernel_dependency_index()</code></h3>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">write_kernel_dependency_index</span>(library_dir, <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<p>This function analyzes a library directory, computes the full
+transitive dependency closure for every stem, and writes <strong>two
+companion files</strong> next to the <code>.cl</code> sources:</p>
+<table>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Format</th>
+<th>Consumer</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>kernel_dependency_index.rds</code></td>
+<td>Binary R object</td>
+<td>R functions</td>
+</tr>
+<tr class="even">
+<td><code>kernel_dependency_index.tsv</code></td>
+<td>Tab-separated text</td>
+<td>C++ code</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>.tsv</code> has a header row and one row per stem in global
+load order:</p>
+<pre><code>stem    all_depends
+refactored  
+Rmath   refactored
+nmath   refactored, Rmath
+chebyshev   refactored, Rmath, nmath
+dbinom  dpq, refactored, Rmath, nmath, stirlerr_cycle_free, ...</code></pre>
+<p>Both files are shipped with the package so end users never need to
+regenerate them. Run <code>write_kernel_dependency_index()</code> only
+after adding or removing <code>.cl</code> files from a library
+directory.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># Regenerate after changing the nmath library</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>nmath_dir <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;nmath&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="fu">write_kernel_dependency_index</span>(nmath_dir, <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+</div>
+<div id="loading-with-the-index-load_library_for_kernel-r" class="section level3">
+<h3>Loading with the index — <code>load_library_for_kernel()</code>
+(R)</h3>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">load_library_for_kernel</span>(kernel_path, library_dir,</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>                        <span class="at">depends_tag =</span> <span class="st">&quot;all_depends&quot;</span>,</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>                        <span class="at">index =</span> <span class="cn">NULL</span>)</span></code></pre></div>
+<p>Reads the annotation tag <code>@{depends_tag}</code> from the kernel
+file to get the list of needed stems, looks them up in the pre-loaded
+index, and returns their source concatenated in correct dependency
+order. Returns <code>&quot;&quot;</code> when the kernel has no
+<code>@{depends_tag}</code> annotation (e.g. a kernel using only OpenCL
+built-ins).</p>
+<p>The <code>index</code> argument should always be supplied. Load it
+once and reuse it across all calls to avoid reading from disk on every
+invocation:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>nmath_dir <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;nmath&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="co"># Load the index once</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>idx <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">file.path</span>(nmath_dir, <span class="st">&quot;kernel_dependency_index.rds&quot;</span>))</span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co"># Re-use across multiple kernels --- only the subset for each kernel is read</span></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a>src_gaussian <span class="ot">&lt;-</span> <span class="fu">load_library_for_kernel</span>(</span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a>    <span class="at">kernel_path =</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;ex_glmbayes_src&quot;</span>,</span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a>                              <span class="st">&quot;f2_f3_gaussian.cl&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>),</span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a>    <span class="at">library_dir =</span> nmath_dir,</span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a>    <span class="at">depends_tag =</span> <span class="st">&quot;depends_nmath&quot;</span>,</span>
+<span id="cb14-12"><a href="#cb14-12" tabindex="-1"></a>    <span class="at">index       =</span> idx</span>
+<span id="cb14-13"><a href="#cb14-13" tabindex="-1"></a>)</span>
+<span id="cb14-14"><a href="#cb14-14" tabindex="-1"></a>src_gamma <span class="ot">&lt;-</span> <span class="fu">load_library_for_kernel</span>(</span>
+<span id="cb14-15"><a href="#cb14-15" tabindex="-1"></a>    <span class="at">kernel_path =</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;ex_glmbayes_src&quot;</span>,</span>
+<span id="cb14-16"><a href="#cb14-16" tabindex="-1"></a>                              <span class="st">&quot;f2_f3_gamma.cl&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>),</span>
+<span id="cb14-17"><a href="#cb14-17" tabindex="-1"></a>    <span class="at">library_dir =</span> nmath_dir,</span>
+<span id="cb14-18"><a href="#cb14-18" tabindex="-1"></a>    <span class="at">depends_tag =</span> <span class="st">&quot;depends_nmath&quot;</span>,</span>
+<span id="cb14-19"><a href="#cb14-19" tabindex="-1"></a>    <span class="at">index       =</span> idx</span>
+<span id="cb14-20"><a href="#cb14-20" tabindex="-1"></a>)</span></code></pre></div>
+<p>The annotation tag in the kernel file must follow the same format
+used throughout the library:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="co">// @depends_nmath: dbinom, pnorm, dnorm</span></span></code></pre></div>
+</div>
+<div id="extracting-a-subset-extract_library_subset" class="section level3">
+<h3>Extracting a subset — <code>extract_library_subset()</code></h3>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">extract_library_subset</span>(kernel_paths, library_dir, dest_dir,</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a>                       <span class="at">depends_tag =</span> <span class="st">&quot;all_depends&quot;</span>,</span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a>                       <span class="at">index =</span> <span class="cn">NULL</span>,</span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a>                       <span class="at">overwrite =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+<p>Given a set of kernel files, reads their <code>@{depends_tag}</code>
+annotations, takes the union of all transitive dependencies, and copies
+exactly those <code>.cl</code> files (plus both index files) from
+<code>library_dir</code> to <code>dest_dir</code> in dependency order.
+The destination directory must already exist.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>nmath_dir    <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;nmath&quot;</span>,           <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>src_dir      <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;ex_glmbayes_src&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>dest_dir     <span class="ot">&lt;-</span> <span class="st">&quot;inst/cl/mypkg_nmath&quot;</span>   <span class="co"># must exist</span></span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>idx <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">file.path</span>(nmath_dir, <span class="st">&quot;kernel_dependency_index.rds&quot;</span>))</span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">extract_library_subset</span>(</span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a>    <span class="at">kernel_paths =</span> <span class="fu">list.files</span>(src_dir, <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.cl$&quot;</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a>    <span class="at">library_dir  =</span> nmath_dir,</span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a>    <span class="at">dest_dir     =</span> dest_dir,</span>
+<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a>    <span class="at">depends_tag  =</span> <span class="st">&quot;depends_nmath&quot;</span>,</span>
+<span id="cb17-12"><a href="#cb17-12" tabindex="-1"></a>    <span class="at">index        =</span> idx</span>
+<span id="cb17-13"><a href="#cb17-13" tabindex="-1"></a>)</span>
+<span id="cb17-14"><a href="#cb17-14" tabindex="-1"></a><span class="fu">print</span>(result)  <span class="co"># data frame: stem, source, dest, copied</span></span></code></pre></div>
+<p>The result includes a row for
+<code>kernel_dependency_index.rds</code> and
+<code>kernel_dependency_index.tsv</code> so the extracted subset is
+immediately usable by both R and C++.</p>
+</div>
+<div id="c-equivalent-openclportload_library_for_kernel" class="section level3">
+<h3>C++ equivalent —
+<code>openclPort::load_library_for_kernel()</code></h3>
+<p>For use inside Rcpp kernel wrappers (where calling back into R is not
+permitted), <code>kernel_loader.cpp</code> provides a C++ implementation
+with the same semantics:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;openclPort.h&quot;</span><span class="pp">   </span><span class="co">// declares load_library_for_kernel</span></span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="co">// Inside a kernel wrapper, after the family/link dispatch has set kernel_file:</span></span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="bu">std::</span>string nmath_source <span class="op">=</span> openclPort<span class="op">::</span>load_library_for_kernel<span class="op">(</span></span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>    kernel_file<span class="op">,</span>          <span class="co">// e.g. &quot;ex_glmbayes_src/f2_f3_binomial_logit.cl&quot;</span></span>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>    <span class="st">&quot;ex_glmbayes_nmath&quot;</span><span class="op">,</span>  <span class="co">// library subdirectory</span></span>
+<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>    <span class="st">&quot;nmathopencl&quot;</span><span class="op">,</span>        <span class="co">// package</span></span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a>    <span class="st">&quot;depends_nmath&quot;</span>       <span class="co">// annotation tag</span></span>
+<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a><span class="op">);</span></span></code></pre></div>
+<p>The C++ function reads <code>kernel_dependency_index.tsv</code> from
+the library directory once per call, parses the annotation tag from the
+kernel file, and loads only the required subset in the pre-computed
+order. No topological sort is performed at runtime.</p>
+<p>The <code>@depends_nmath</code> annotation must list the
+<strong>direct</strong> nmath entry-point stems called by the kernel
+(not the full transitive list):</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co">// @depends_nmath: dbinom, pnorm, dnorm</span></span></code></pre></div>
+<p>The transitive expansion is performed automatically using the TSV
+index.</p>
+</div>
+</div>
+<div id="error-messages" class="section level2">
+<h2>Error messages</h2>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Error</th>
+<th>Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>&quot;OpenCL support is not available&quot;</code></td>
+<td>Package built without <code>USE_OPENCL</code></td>
+</tr>
+<tr class="even">
+<td><code>&quot;Dependency sort failed: unresolved dependencies remain.&quot;</code></td>
+<td>A <code>@depends</code> entry names a file that does not exist in
+the directory, or there is a genuine circular dependency</td>
+</tr>
+<tr class="odd">
+<td><code>&quot;File not found: inst/cl/&lt;path&gt;&quot;</code></td>
+<td><code>relative_path</code> does not match any file in the
+package</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-06-11" />
+
+<title>Chapter 10: Case Study — Building Custom GLM Kernels (ex_glmbayes)</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter 10: Case Study — Building Custom
+GLM Kernels (ex_glmbayes)</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-06-11</h4>
+
+
+
+<div id="overview" class="section level2">
+<h2>Overview</h2>
+<p>Chapters 03-10 describe the infrastructure of
+<code>nmathopencl</code>: the shim layer, the <code>nmath</code>
+library, the kernel format, and the runner API. This chapter shows how
+to put all of it together by walking through a concrete downstream
+use-case: the <code>ex_glmbayes</code> example built into the
+package.</p>
+<p><code>ex_glmbayes</code> implements GPU-accelerated evaluation of the
+log-posterior and gradient (<code>f2</code>/<code>f3</code>) for
+Bayesian GLMs (Gaussian, Gamma, binomial with logit/probit/cloglog
+links, and Poisson). It is the type of component a package author would
+build on top of <code>nmathopencl</code> to accelerate their own
+likelihood computations. The name <code>ex_glmbayes</code> signals that
+this is an example, not a core part of the library; it lives entirely in
+<code>ex_glmbayes_*</code>-prefixed files and within the
+<code>ex_glmbayes</code> C++ namespace.</p>
+</div>
+<div id="step-1-identify-the-nmath-functions-your-kernel-needs" class="section level2">
+<h2>Step 1 — Identify the nmath functions your kernel needs</h2>
+<p>For each GLM family, determine which nmath functions the GPU kernel
+must call:</p>
+<table>
+<colgroup>
+<col width="16%" />
+<col width="53%" />
+<col width="30%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Kernel</th>
+<th>nmath function(s) called</th>
+<th>Link function</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>f2_f3_binomial_logit.cl</code></td>
+<td><code>dbinom_raw</code></td>
+<td>logit</td>
+</tr>
+<tr class="even">
+<td><code>f2_f3_binomial_probit.cl</code></td>
+<td><code>dbinom_raw</code>, <code>pnorm5</code>,
+<code>dnorm4</code></td>
+<td>probit</td>
+</tr>
+<tr class="odd">
+<td><code>f2_f3_binomial_cloglog.cl</code></td>
+<td><code>dbinom_raw</code></td>
+<td>cloglog</td>
+</tr>
+<tr class="even">
+<td><code>f2_f3_gamma.cl</code></td>
+<td><code>dgamma</code></td>
+<td>log</td>
+</tr>
+<tr class="odd">
+<td><code>f2_f3_gaussian.cl</code></td>
+<td><code>dnorm4</code></td>
+<td>identity/log</td>
+</tr>
+<tr class="even">
+<td><code>f2_f3_poisson.cl</code></td>
+<td><code>lgamma</code> (OpenCL built-in)</td>
+<td>log</td>
+</tr>
+</tbody>
+</table>
+<p>For <code>f2_f3_poisson</code>, <code>lgamma</code> is an OpenCL
+built-in (part of the OpenCL 1.1 math specification) so no nmath files
+are needed at all. For the others, consult the
+<code>@all_depends_nmath</code> tag of each kernel file to get the full
+transitive dependency list.</p>
+</div>
+<div id="step-2-extract-the-minimal-nmath-subset" class="section level2">
+<h2>Step 2 — Extract the minimal nmath subset</h2>
+<p>The <code>@all_depends_nmath</code> tag in each kernel file gives the
+complete transitive closure. Taking the union across the five
+non-Poisson kernels yields 20 files (17 nmath functions +
+<code>Rmath</code>, <code>nmath</code>, <code>refactored</code> as
+infrastructure):</p>
+<pre><code>Rmath, nmath, refactored,
+chebyshev, cospi, fmax2, gammalims, lgammacor,
+gamma, lgamma,
+stirlerr_cycle_free, pgamma_utils, stirlerr_cycle_dependent, stirlerr, bd0,
+dpois, dgamma, dnorm, pnorm, dbinom</code></pre>
+<p>These files are stored in <code>inst/cl/ex_glmbayes_nmath/</code>.
+Rather than copying them manually, use
+<code>extract_library_subset()</code> to derive this directory
+automatically from the kernel annotations:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a>nmath_dir <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;nmath&quot;</span>,           <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a>src_dir   <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;ex_glmbayes_src&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co"># Load the pre-built dependency index (read once, reuse across calls)</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>idx <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">file.path</span>(nmath_dir, <span class="st">&quot;kernel_dependency_index.rds&quot;</span>))</span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">extract_library_subset</span>(</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a>    <span class="at">kernel_paths =</span> <span class="fu">list.files</span>(src_dir, <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.cl$&quot;</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>    <span class="at">library_dir  =</span> nmath_dir,</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>    <span class="at">dest_dir     =</span> <span class="st">&quot;inst/cl/ex_glmbayes_nmath&quot;</span>,</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>    <span class="at">depends_tag  =</span> <span class="st">&quot;depends_nmath&quot;</span>,</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>    <span class="at">index        =</span> idx</span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>)</span></code></pre></div>
+<p><code>extract_library_subset()</code> copies the 20 <code>.cl</code>
+files <strong>plus both index files</strong>
+(<code>kernel_dependency_index.rds</code> and
+<code>kernel_dependency_index.tsv</code>) into the destination
+directory. The index files are required for the indexed loading
+described in Step 5.</p>
+<p>A package developer would create an analogous subdirectory for their
+own kernel set using the same function.</p>
+</div>
+<div id="step-3-write-the-kernel-files" class="section level2">
+<h2>Step 3 — Write the kernel files</h2>
+<p>Each kernel file in <code>inst/cl/ex_glmbayes_src/</code> starts with
+the dependency metadata block followed by the kernel body:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co">// @library_deps: nmath</span></span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">// @calls_nmath: dbinom_raw</span></span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">// @depends_nmath: dbinom</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">// @all_depends_nmath_count: 17</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">// @all_depends_nmath: Rmath, nmath, refactored, chebyshev, cospi, fmax2,</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">//   gammalims, lgammacor, gamma, lgamma, stirlerr_cycle_free, pgamma_utils,</span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">//   stirlerr_cycle_dependent, stirlerr, bd0, dbinom</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">// @calls_opencl_builtin: (none)</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="pp">#pragma OPENCL EXTENSION cl_khr_fp64 : enable</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="pp">#pragma OPENCL EXTENSION cl_khr_printf : enable</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="pp">#define MAX_L2 </span><span class="dv">64</span><span class="pp">   </span><span class="co">// upper bound on l2</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>__kernel <span class="dt">void</span> f2_f3_binomial_logit<span class="op">(</span></span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> X<span class="op">,</span>      <span class="co">// design matrix,  size = l1 x l2, col-major</span></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> B<span class="op">,</span>      <span class="co">// grid,            size = m1 x l2</span></span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> mu<span class="op">,</span>     <span class="co">// prior mean,      length = l2</span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> P<span class="op">,</span>      <span class="co">// prior precision, size = l2 x l2</span></span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> alpha<span class="op">,</span>  <span class="co">// offset,          length = l1</span></span>
+<span id="cb3-21"><a href="#cb3-21" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> y<span class="op">,</span>      <span class="co">// response,        length = l1</span></span>
+<span id="cb3-22"><a href="#cb3-22" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> wt<span class="op">,</span>     <span class="co">// weights,         length = l1</span></span>
+<span id="cb3-23"><a href="#cb3-23" tabindex="-1"></a>    __global <span class="dt">double</span><span class="op">*</span>       qf<span class="op">,</span>     <span class="co">// out: neg log-posterior, length = m1</span></span>
+<span id="cb3-24"><a href="#cb3-24" tabindex="-1"></a>    __global <span class="dt">double</span><span class="op">*</span>       grad<span class="op">,</span>   <span class="co">// out: gradient,   size = m1 x l2</span></span>
+<span id="cb3-25"><a href="#cb3-25" tabindex="-1"></a>    <span class="dt">const</span> <span class="dt">int</span> l1<span class="op">,</span></span>
+<span id="cb3-26"><a href="#cb3-26" tabindex="-1"></a>    <span class="dt">const</span> <span class="dt">int</span> l2<span class="op">,</span></span>
+<span id="cb3-27"><a href="#cb3-27" tabindex="-1"></a>    <span class="dt">const</span> <span class="dt">int</span> m1</span>
+<span id="cb3-28"><a href="#cb3-28" tabindex="-1"></a><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-29"><a href="#cb3-29" tabindex="-1"></a>    <span class="dt">int</span> j <span class="op">=</span> get_global_id<span class="op">(</span><span class="dv">0</span><span class="op">);</span></span>
+<span id="cb3-30"><a href="#cb3-30" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>j <span class="op">&gt;=</span> m1<span class="op">)</span> <span class="cf">return</span><span class="op">;</span></span>
+<span id="cb3-31"><a href="#cb3-31" tabindex="-1"></a></span>
+<span id="cb3-32"><a href="#cb3-32" tabindex="-1"></a>    <span class="co">// prior quadratic form: 0.5 * (B_j - mu)&#39; P (B_j - mu)</span></span>
+<span id="cb3-33"><a href="#cb3-33" tabindex="-1"></a>    <span class="dt">double</span> tmp<span class="op">[</span>MAX_L2<span class="op">];</span></span>
+<span id="cb3-34"><a href="#cb3-34" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> k <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> k <span class="op">&lt;</span> l2<span class="op">;</span> <span class="op">++</span>k<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-35"><a href="#cb3-35" tabindex="-1"></a>        <span class="dt">double</span> acc <span class="op">=</span> <span class="fl">0.0</span><span class="op">;</span></span>
+<span id="cb3-36"><a href="#cb3-36" tabindex="-1"></a>        <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> l <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> l <span class="op">&lt;</span> l2<span class="op">;</span> <span class="op">++</span>l<span class="op">)</span></span>
+<span id="cb3-37"><a href="#cb3-37" tabindex="-1"></a>            acc <span class="op">+=</span> P<span class="op">[</span>k<span class="op">*</span>l2 <span class="op">+</span> l<span class="op">]</span> <span class="op">*</span> <span class="op">(</span>B<span class="op">[</span>j<span class="op">*</span>l2 <span class="op">+</span> l<span class="op">]</span> <span class="op">-</span> mu<span class="op">[</span>l<span class="op">]);</span></span>
+<span id="cb3-38"><a href="#cb3-38" tabindex="-1"></a>        tmp<span class="op">[</span>k<span class="op">]</span> <span class="op">=</span> acc<span class="op">;</span></span>
+<span id="cb3-39"><a href="#cb3-39" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-40"><a href="#cb3-40" tabindex="-1"></a>    <span class="dt">double</span> res_acc <span class="op">=</span> <span class="fl">0.0</span><span class="op">;</span></span>
+<span id="cb3-41"><a href="#cb3-41" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> k <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> k <span class="op">&lt;</span> l2<span class="op">;</span> <span class="op">++</span>k<span class="op">)</span></span>
+<span id="cb3-42"><a href="#cb3-42" tabindex="-1"></a>        res_acc <span class="op">+=</span> <span class="fl">0.5</span> <span class="op">*</span> <span class="op">(</span>B<span class="op">[</span>j<span class="op">*</span>l2 <span class="op">+</span> k<span class="op">]</span> <span class="op">-</span> mu<span class="op">[</span>k<span class="op">])</span> <span class="op">*</span> tmp<span class="op">[</span>k<span class="op">];</span></span>
+<span id="cb3-43"><a href="#cb3-43" tabindex="-1"></a></span>
+<span id="cb3-44"><a href="#cb3-44" tabindex="-1"></a>    <span class="co">// gradient: prior part</span></span>
+<span id="cb3-45"><a href="#cb3-45" tabindex="-1"></a>    <span class="dt">double</span> g_loc<span class="op">[</span>MAX_L2<span class="op">];</span></span>
+<span id="cb3-46"><a href="#cb3-46" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> k <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> k <span class="op">&lt;</span> l2<span class="op">;</span> <span class="op">++</span>k<span class="op">)</span> g_loc<span class="op">[</span>k<span class="op">]</span> <span class="op">=</span> tmp<span class="op">[</span>k<span class="op">];</span></span>
+<span id="cb3-47"><a href="#cb3-47" tabindex="-1"></a></span>
+<span id="cb3-48"><a href="#cb3-48" tabindex="-1"></a>    <span class="co">// data likelihood: logistic link + dbinom_raw</span></span>
+<span id="cb3-49"><a href="#cb3-49" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> l1<span class="op">;</span> <span class="op">++</span>i<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb3-50"><a href="#cb3-50" tabindex="-1"></a>        <span class="dt">double</span> dot <span class="op">=</span> <span class="op">-</span>alpha<span class="op">[</span>i<span class="op">];</span></span>
+<span id="cb3-51"><a href="#cb3-51" tabindex="-1"></a>        <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> k <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> k <span class="op">&lt;</span> l2<span class="op">;</span> <span class="op">++</span>k<span class="op">)</span></span>
+<span id="cb3-52"><a href="#cb3-52" tabindex="-1"></a>            dot <span class="op">-=</span> X<span class="op">[</span>k<span class="op">*</span>l1 <span class="op">+</span> i<span class="op">]</span> <span class="op">*</span> B<span class="op">[</span>j<span class="op">*</span>l2 <span class="op">+</span> k<span class="op">];</span></span>
+<span id="cb3-53"><a href="#cb3-53" tabindex="-1"></a>        <span class="dt">double</span> e <span class="op">=</span> exp<span class="op">(</span>dot <span class="op">&lt;=</span> <span class="dv">0</span> <span class="op">?</span> dot <span class="op">:</span> <span class="op">-</span>dot<span class="op">);</span></span>
+<span id="cb3-54"><a href="#cb3-54" tabindex="-1"></a>        <span class="dt">double</span> p <span class="op">=</span> dot <span class="op">&lt;=</span> <span class="dv">0</span> <span class="op">?</span> <span class="fl">1.0</span><span class="op">/(</span><span class="fl">1.0</span><span class="op">+</span>e<span class="op">)</span> <span class="op">:</span> e<span class="op">/(</span><span class="fl">1.0</span><span class="op">+</span>e<span class="op">);</span></span>
+<span id="cb3-55"><a href="#cb3-55" tabindex="-1"></a>        <span class="dt">double</span> q <span class="op">=</span> <span class="fl">1.0</span> <span class="op">-</span> p<span class="op">;</span></span>
+<span id="cb3-56"><a href="#cb3-56" tabindex="-1"></a>        res_acc <span class="op">+=</span> <span class="op">-</span>dbinom_raw<span class="op">(</span>y<span class="op">[</span>i<span class="op">],</span> wt<span class="op">[</span>i<span class="op">],</span> p<span class="op">,</span> q<span class="op">,</span> <span class="dv">1</span><span class="op">);</span></span>
+<span id="cb3-57"><a href="#cb3-57" tabindex="-1"></a>        <span class="dt">double</span> resid <span class="op">=</span> p <span class="op">&lt;</span> <span class="fl">0.5</span> <span class="op">?</span> p<span class="op">*</span>wt<span class="op">[</span>i<span class="op">]</span> <span class="op">-</span> y<span class="op">[</span>i<span class="op">]*</span>wt<span class="op">[</span>i<span class="op">]</span></span>
+<span id="cb3-58"><a href="#cb3-58" tabindex="-1"></a>                                <span class="op">:</span> <span class="op">(</span><span class="dv">1</span><span class="op">-</span>y<span class="op">[</span>i<span class="op">])*</span>wt<span class="op">[</span>i<span class="op">]</span> <span class="op">-</span> q<span class="op">*</span>wt<span class="op">[</span>i<span class="op">];</span></span>
+<span id="cb3-59"><a href="#cb3-59" tabindex="-1"></a>        <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> k <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> k <span class="op">&lt;</span> l2<span class="op">;</span> <span class="op">++</span>k<span class="op">)</span></span>
+<span id="cb3-60"><a href="#cb3-60" tabindex="-1"></a>            g_loc<span class="op">[</span>k<span class="op">]</span> <span class="op">+=</span> X<span class="op">[</span>k<span class="op">*</span>l1 <span class="op">+</span> i<span class="op">]</span> <span class="op">*</span> resid<span class="op">;</span></span>
+<span id="cb3-61"><a href="#cb3-61" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-62"><a href="#cb3-62" tabindex="-1"></a></span>
+<span id="cb3-63"><a href="#cb3-63" tabindex="-1"></a>    qf<span class="op">[</span>j<span class="op">]</span> <span class="op">=</span> res_acc<span class="op">;</span></span>
+<span id="cb3-64"><a href="#cb3-64" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> k <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> k <span class="op">&lt;</span> l2<span class="op">;</span> <span class="op">++</span>k<span class="op">)</span></span>
+<span id="cb3-65"><a href="#cb3-65" tabindex="-1"></a>        grad<span class="op">[</span>k <span class="op">*</span> m1 <span class="op">+</span> j<span class="op">]</span> <span class="op">=</span> g_loc<span class="op">[</span>k<span class="op">];</span></span>
+<span id="cb3-66"><a href="#cb3-66" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Key design choices:</p>
+<ul>
+<li><code>MAX_L2 64</code> — a compile-time upper bound on the number of
+predictors, used to size local arrays (OpenCL C does not support
+variable-length arrays in all implementations).</li>
+<li>Column-major layout for <code>X</code> (matches R’s memory layout
+for matrices passed from R to C without transposition).</li>
+<li>A single work-item per grid point <code>j</code>; all
+<code>l1</code> observations are processed sequentially within that
+work-item. This is appropriate when <code>m1</code> (number of grid
+points) is much larger than <code>l1</code> (number of observations), as
+is typical for envelope sampling.</li>
+</ul>
+</div>
+<div id="step-4-write-the-kernel-runner-c" class="section level2">
+<h2>Step 4 — Write the kernel runner (C++)</h2>
+<p>The kernel runner is the low-level C++ function that manages the
+OpenCL lifecycle for this specific kernel. It lives in
+<code>ex_glmbayes_kernel_runners.cpp</code> inside the
+<code>ex_glmbayes::opencl</code> namespace:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co">// ex_glmbayes_kernel_runners.cpp (abbreviated)</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="kw">namespace</span> ex_glmbayes <span class="op">{</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="kw">namespace</span> opencl <span class="op">{</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="dt">void</span> f2_f3_kernel_runner<span class="op">(</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>string<span class="op">&amp;</span> kernel_source<span class="op">,</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>    <span class="at">const</span> <span class="dt">char</span><span class="op">*</span>        kernel_name<span class="op">,</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>    <span class="dt">int</span> l1<span class="op">,</span> <span class="dt">int</span> l2<span class="op">,</span> <span class="dt">int</span> m1<span class="op">,</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> X_flat<span class="op">,</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> B_flat<span class="op">,</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> mu_flat<span class="op">,</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> P_flat<span class="op">,</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> alpha_flat<span class="op">,</span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> y_flat<span class="op">,</span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> wt_flat<span class="op">,</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>    <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> qf_flat<span class="op">,</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>    <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;&amp;</span> grad_flat</span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>    <span class="co">// Select platform and device</span></span>
+<span id="cb4-20"><a href="#cb4-20" tabindex="-1"></a>    <span class="co">// Create context, command queue, program, kernel</span></span>
+<span id="cb4-21"><a href="#cb4-21" tabindex="-1"></a>    <span class="co">// Create input buffers (CL_MEM_READ_ONLY) and output buffers (CL_MEM_WRITE_ONLY)</span></span>
+<span id="cb4-22"><a href="#cb4-22" tabindex="-1"></a>    <span class="co">// Set kernel arguments</span></span>
+<span id="cb4-23"><a href="#cb4-23" tabindex="-1"></a>    <span class="co">// Enqueue kernel with global_size = m1</span></span>
+<span id="cb4-24"><a href="#cb4-24" tabindex="-1"></a>    <span class="co">// Read back qf_flat and grad_flat</span></span>
+<span id="cb4-25"><a href="#cb4-25" tabindex="-1"></a>    <span class="co">// Release all resources</span></span>
+<span id="cb4-26"><a href="#cb4-26" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-27"><a href="#cb4-27" tabindex="-1"></a></span>
+<span id="cb4-28"><a href="#cb4-28" tabindex="-1"></a><span class="op">}}</span> <span class="co">// namespace ex_glmbayes::opencl</span></span></code></pre></div>
+<p>The runner uses the error-handling utilities from
+<code>openclPort.h</code> (<code>opencl_make_context_error</code>,
+<code>opencl_status_name</code>) to produce informative exceptions on
+failure.</p>
+</div>
+<div id="step-5-write-the-kernel-wrapper-c" class="section level2">
+<h2>Step 5 — Write the kernel wrapper (C++)</h2>
+<p>The kernel wrapper is the R-facing <code>[[Rcpp::export]]</code>
+function. It validates and converts R inputs, selects the kernel name
+based on family/link, assembles the program string using the dependency
+index, calls the runner, and returns results as R objects. It lives in
+<code>ex_glmbayes_kernel_wrappers.cpp</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co">// ex_glmbayes_kernel_wrappers.cpp (abbreviated)</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="kw">namespace</span> ex_glmbayes <span class="op">{</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="kw">namespace</span> opencl <span class="op">{</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">// [[Rcpp::export]]</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>Rcpp<span class="op">::</span>List f2_f3_opencl<span class="op">(</span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>    <span class="bu">std::</span>string family<span class="op">,</span> <span class="bu">std::</span>string link<span class="op">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericMatrix b<span class="op">,</span>  Rcpp<span class="op">::</span>NumericVector y<span class="op">,</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericMatrix x<span class="op">,</span>  Rcpp<span class="op">::</span>NumericMatrix mu<span class="op">,</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericMatrix P<span class="op">,</span>  Rcpp<span class="op">::</span>NumericVector alpha<span class="op">,</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericVector wt<span class="op">,</span> <span class="dt">int</span> progbar<span class="op">)</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>    <span class="dt">int</span> l1 <span class="op">=</span> x<span class="op">.</span>nrow<span class="op">(),</span> l2 <span class="op">=</span> x<span class="op">.</span>ncol<span class="op">(),</span> m1 <span class="op">=</span> b<span class="op">.</span>ncol<span class="op">();</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>    <span class="co">// 1. Flatten R matrices into contiguous vectors</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>    <span class="kw">auto</span> X_flat  <span class="op">=</span> openclPort<span class="op">::</span>flattenMatrix<span class="op">(</span>x<span class="op">);</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a>    <span class="kw">auto</span> B_flat  <span class="op">=</span> openclPort<span class="op">::</span>flattenMatrix<span class="op">(</span>b<span class="op">);</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a>    <span class="co">// ... (all inputs)</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a></span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>    <span class="co">// 2. Dispatch: set kernel_name and kernel_file based on family/link</span></span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a>    <span class="bu">std::</span>string kernel_name<span class="op">,</span> kernel_file<span class="op">;</span></span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>family <span class="op">==</span> <span class="st">&quot;binomial&quot;</span> <span class="op">&amp;&amp;</span> link <span class="op">==</span> <span class="st">&quot;logit&quot;</span><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a>        kernel_name <span class="op">=</span> <span class="st">&quot;f2_f3_binomial_logit&quot;</span><span class="op">;</span></span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a>        kernel_file <span class="op">=</span> <span class="st">&quot;ex_glmbayes_src/f2_f3_binomial_logit.cl&quot;</span><span class="op">;</span></span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a>    <span class="op">}</span> <span class="co">// ... (all families)</span></span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a></span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a>    <span class="co">// 3. Assemble program source using the pre-built dependency index.</span></span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a>    <span class="co">//    load_library_for_kernel() reads @depends_nmath from the kernel file,</span></span>
+<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a>    <span class="co">//    looks up the transitive closure in kernel_dependency_index.tsv, and</span></span>
+<span id="cb5-30"><a href="#cb5-30" tabindex="-1"></a>    <span class="co">//    loads only the required subset in the correct order --- no sort at runtime.</span></span>
+<span id="cb5-31"><a href="#cb5-31" tabindex="-1"></a>    <span class="bu">std::</span>string nmath_src <span class="op">=</span> openclPort<span class="op">::</span>load_library_for_kernel<span class="op">(</span></span>
+<span id="cb5-32"><a href="#cb5-32" tabindex="-1"></a>        kernel_file<span class="op">,</span>          <span class="co">// kernel .cl path (relative to inst/cl/)</span></span>
+<span id="cb5-33"><a href="#cb5-33" tabindex="-1"></a>        <span class="st">&quot;ex_glmbayes_nmath&quot;</span><span class="op">,</span>  <span class="co">// library subdir containing index + .cl files</span></span>
+<span id="cb5-34"><a href="#cb5-34" tabindex="-1"></a>        <span class="st">&quot;nmathopencl&quot;</span><span class="op">,</span>        <span class="co">// package</span></span>
+<span id="cb5-35"><a href="#cb5-35" tabindex="-1"></a>        <span class="st">&quot;depends_nmath&quot;</span>       <span class="co">// annotation tag listing direct nmath entry points</span></span>
+<span id="cb5-36"><a href="#cb5-36" tabindex="-1"></a>    <span class="op">);</span></span>
+<span id="cb5-37"><a href="#cb5-37" tabindex="-1"></a>    <span class="bu">std::</span>string kernel_src <span class="op">=</span> openclPort<span class="op">::</span>load_kernel_source<span class="op">(</span></span>
+<span id="cb5-38"><a href="#cb5-38" tabindex="-1"></a>        kernel_file<span class="op">,</span> <span class="st">&quot;nmathopencl&quot;</span><span class="op">);</span></span>
+<span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a>    <span class="bu">std::</span>string program_source <span class="op">=</span> nmath_src <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span> <span class="op">+</span> kernel_src<span class="op">;</span></span>
+<span id="cb5-40"><a href="#cb5-40" tabindex="-1"></a></span>
+<span id="cb5-41"><a href="#cb5-41" tabindex="-1"></a>    <span class="co">// 4. Allocate output buffers</span></span>
+<span id="cb5-42"><a href="#cb5-42" tabindex="-1"></a>    <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;</span> qf_flat<span class="op">(</span>m1<span class="op">);</span></span>
+<span id="cb5-43"><a href="#cb5-43" tabindex="-1"></a>    <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="dt">double</span><span class="op">&gt;</span> grad_flat<span class="op">(</span><span class="kw">static_cast</span><span class="op">&lt;</span><span class="dt">size_t</span><span class="op">&gt;(</span>m1<span class="op">)</span> <span class="op">*</span> l2<span class="op">);</span></span>
+<span id="cb5-44"><a href="#cb5-44" tabindex="-1"></a></span>
+<span id="cb5-45"><a href="#cb5-45" tabindex="-1"></a>    <span class="co">// 5. Run the kernel</span></span>
+<span id="cb5-46"><a href="#cb5-46" tabindex="-1"></a>    f2_f3_kernel_runner<span class="op">(</span>program_source<span class="op">,</span> kernel_name<span class="op">.</span>c_str<span class="op">(),</span></span>
+<span id="cb5-47"><a href="#cb5-47" tabindex="-1"></a>                        l1<span class="op">,</span> l2<span class="op">,</span> m1<span class="op">,</span></span>
+<span id="cb5-48"><a href="#cb5-48" tabindex="-1"></a>                        X_flat<span class="op">,</span> B_flat<span class="op">,</span> mu_flat<span class="op">,</span> P_flat<span class="op">,</span></span>
+<span id="cb5-49"><a href="#cb5-49" tabindex="-1"></a>                        alpha_flat<span class="op">,</span> y_flat<span class="op">,</span> wt_flat<span class="op">,</span></span>
+<span id="cb5-50"><a href="#cb5-50" tabindex="-1"></a>                        qf_flat<span class="op">,</span> grad_flat<span class="op">);</span></span>
+<span id="cb5-51"><a href="#cb5-51" tabindex="-1"></a></span>
+<span id="cb5-52"><a href="#cb5-52" tabindex="-1"></a>    <span class="co">// 6. Wrap outputs as R objects and return</span></span>
+<span id="cb5-53"><a href="#cb5-53" tabindex="-1"></a>    Rcpp<span class="op">::</span>NumericVector qf<span class="op">(</span>qf_flat<span class="op">.</span>begin<span class="op">(),</span> qf_flat<span class="op">.</span>end<span class="op">());</span></span>
+<span id="cb5-54"><a href="#cb5-54" tabindex="-1"></a>    <span class="co">// ... (reshape grad_flat into a matrix)</span></span>
+<span id="cb5-55"><a href="#cb5-55" tabindex="-1"></a>    <span class="cf">return</span> Rcpp<span class="op">::</span>List<span class="op">::</span>create<span class="op">(</span>Rcpp<span class="op">::</span>Named<span class="op">(</span><span class="st">&quot;qf&quot;</span><span class="op">)</span> <span class="op">=</span> qf<span class="op">,</span> <span class="op">...);</span></span>
+<span id="cb5-56"><a href="#cb5-56" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-57"><a href="#cb5-57" tabindex="-1"></a></span>
+<span id="cb5-58"><a href="#cb5-58" tabindex="-1"></a><span class="op">}}</span> <span class="co">// namespace ex_glmbayes::opencl</span></span></code></pre></div>
+<div id="why-load_library_for_kernel-rather-than-load_kernel_library" class="section level3">
+<h3>Why <code>load_library_for_kernel()</code> rather than
+<code>load_kernel_library()</code>?</h3>
+<p><code>load_kernel_library()</code> sorts and concatenates
+<strong>every</strong> file in the subdirectory on every call. For a
+137-file library like <code>nmath</code> this requires reading all files
+sequentially. <code>load_library_for_kernel()</code> reads the pre-built
+<code>kernel_dependency_index.tsv</code> once, then reads only the small
+subset of files that the specific kernel actually needs — 3 files for
+<code>f2_f3_gaussian</code>, 17 for <code>f2_f3_binomial_logit</code>,
+and so on. The savings are significant for large libraries and become
+important when the kernel wrapper is called repeatedly.</p>
+<p>The old full-library approach is still available for cases where the
+exact dependency set is unknown or all files are genuinely needed:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co">// Old approach --- loads all files in the subdirectory (kept for reference)</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">// std::string nmath_src = openclPort::load_kernel_library(</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">//     &quot;ex_glmbayes_nmath&quot;, &quot;nmathopencl&quot;, false);</span></span></code></pre></div>
+</div>
+</div>
+<div id="step-6-write-the-rcpp-export-wrappers-c-and-r" class="section level2">
+<h2>Step 6 — Write the Rcpp export wrappers (C++ and R)</h2>
+<p>The <code>[[Rcpp::export]]</code> annotation on
+<code>f2_f3_opencl</code> causes <code>Rcpp::compileAttributes()</code>
+to generate:</p>
+<ul>
+<li>A <code>.Call</code> entry in <code>RcppExports.cpp</code></li>
+<li>An R wrapper in <code>RcppExports.R</code></li>
+</ul>
+<p>The R-side convenience function in <code>ex_glmbayes.R</code> adds a
+<code>nmathopencl_has_opencl()</code> guard and CPU fallback:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>f2_f3_opencl_R <span class="ot">&lt;-</span> <span class="cf">function</span>(family, link, b, y, x, mu, P, alpha, wt,</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>                             <span class="at">use_opencl =</span> <span class="cn">TRUE</span>) {</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="cf">if</span> (use_opencl <span class="sc">&amp;&amp;</span> <span class="fu">nmathopencl_has_opencl</span>()) {</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>    <span class="fu">f2_f3_opencl</span>(family, link, b, y, x, mu, P, alpha, wt, <span class="at">progbar =</span> <span class="dv">0</span><span class="dt">L</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>    <span class="fu">f2_f3_non_opencl</span>(family, link, b, y, x, mu, P, alpha, wt)</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  }</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>}</span></code></pre></div>
+</div>
+<div id="step-7-implement-the-cpu-fallback" class="section level2">
+<h2>Step 7 — Implement the CPU fallback</h2>
+<p>The CPU fallback uses the same mathematical logic as the kernel but
+executes in C++ using standard R math calls. The relevant code lives
+in:</p>
+<ul>
+<li><code>ex_glmbayes_famfuncs_binomial.cpp</code> — binomial family
+functions</li>
+<li><code>ex_glmbayes_famfuncs_poisson.cpp</code> — Poisson family</li>
+<li><code>ex_glmbayes_famfuncs_Gamma.cpp</code> — Gamma family</li>
+<li><code>ex_glmbayes_famfuncs_gaussian.cpp</code> — Gaussian
+family</li>
+<li><code>ex_glmbayes_EnvelopeEval.cpp</code> — orchestrates the CPU
+path</li>
+<li><code>ex_glmbayes_EnvelopeSize.cpp</code> — memory allocation for
+the envelope</li>
+</ul>
+<p>These files are grouped under the <code>ex_glmbayes::fam</code> and
+<code>ex_glmbayes::env</code> sub-namespaces. They use R’s standard
+<code>&lt;Rmath.h&gt;</code> functions (the same mathematical functions
+as the GPU kernels, but via the C runtime rather than OpenCL).</p>
+</div>
+<div id="file-inventory" class="section level2">
+<h2>File inventory</h2>
+<p>The complete set of files contributing to the
+<code>ex_glmbayes</code> example:</p>
+<div id="opencl-source-instcl" class="section level3">
+<h3>OpenCL source (<code>inst/cl/</code>)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Directory</th>
+<th>Files</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ex_glmbayes_nmath/</code></td>
+<td>20 files: the minimal nmath subset</td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_src/</code></td>
+<td>6 files: one <code>f2_f3_*.cl</code> kernel per GLM family</td>
+</tr>
+<tr class="odd">
+<td><code>ex_glmbayes_draft_src/</code></td>
+<td>Draft versions (work in progress)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="c-source-src" class="section level3">
+<h3>C++ source (<code>src/</code>)</h3>
+<table>
+<colgroup>
+<col width="26%" />
+<col width="47%" />
+<col width="26%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Namespace</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ex_glmbayes_kernel_runners.cpp</code></td>
+<td><code>ex_glmbayes::opencl</code></td>
+<td>Low-level OpenCL runner for the <code>f2_f3</code> kernels</td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_kernel_wrappers.cpp</code></td>
+<td><code>ex_glmbayes::opencl</code></td>
+<td>R-facing wrapper: input validation, program assembly, runner
+dispatch</td>
+</tr>
+<tr class="odd">
+<td><code>ex_glmbayes_export_wrappers.cpp</code></td>
+<td>(Rcpp export)</td>
+<td><code>[[Rcpp::export]]</code> entry points for
+<code>EnvelopeSize</code>, <code>EnvelopeEval</code>,
+<code>glmb_Standardize_Model</code></td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_famfuncs_binomial.cpp</code></td>
+<td><code>ex_glmbayes::fam</code></td>
+<td>CPU binomial likelihood</td>
+</tr>
+<tr class="odd">
+<td><code>ex_glmbayes_famfuncs_poisson.cpp</code></td>
+<td><code>ex_glmbayes::fam</code></td>
+<td>CPU Poisson likelihood</td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_famfuncs_Gamma.cpp</code></td>
+<td><code>ex_glmbayes::fam</code></td>
+<td>CPU Gamma likelihood</td>
+</tr>
+<tr class="odd">
+<td><code>ex_glmbayes_famfuncs_gaussian.cpp</code></td>
+<td><code>ex_glmbayes::fam</code></td>
+<td>CPU Gaussian likelihood</td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_EnvelopeEval.cpp</code></td>
+<td><code>ex_glmbayes::env</code></td>
+<td>CPU envelope evaluation (f2/f3 orchestrator)</td>
+</tr>
+<tr class="odd">
+<td><code>ex_glmbayes_EnvelopeSize.cpp</code></td>
+<td><code>ex_glmbayes::env</code></td>
+<td>Envelope memory sizing</td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_glmb_Standardize_Model.cpp</code></td>
+<td><code>ex_glmbayes::sim</code></td>
+<td>Design matrix standardization</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="c-headers-src" class="section level3">
+<h3>C++ headers (<code>src/</code>)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Namespace declared</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ex_glmbayes_opencl.h</code></td>
+<td><code>ex_glmbayes::opencl</code></td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_famfuncs.h</code></td>
+<td><code>ex_glmbayes::fam</code></td>
+</tr>
+<tr class="odd">
+<td><code>ex_glmbayes_Envelopefuncs.h</code></td>
+<td><code>ex_glmbayes::env</code></td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_simfuncs.h</code></td>
+<td><code>ex_glmbayes::sim</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="r-source-r" class="section level3">
+<h3>R source (<code>R/</code>)</h3>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ex_glmbayes.R</code></td>
+<td>R-facing API: <code>f2_f3_opencl_R</code>,
+<code>f2_f3_non_opencl</code></td>
+</tr>
+<tr class="even">
+<td><code>ex_glmbayes_rcpp_wrappers.R</code></td>
+<td>Thin Rcpp wrappers for the three exported C++ export functions</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="adapting-this-pattern-for-a-new-package" class="section level2">
+<h2>Adapting this pattern for a new package</h2>
+<p>To build a similar component in your own package:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Identify your nmath dependencies</strong> — write the
+<code>@depends_nmath</code> annotation in each of your kernel files
+(listing the direct nmath entry points your kernel calls). Then call
+<code>extract_library_subset()</code> to copy the exact transitive
+closure of files, plus the companion index files, into your package’s
+<code>inst/cl/&lt;yourpkg_nmath&gt;/</code>:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>nmath_dir <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;cl&quot;</span>, <span class="st">&quot;nmath&quot;</span>, <span class="at">package =</span> <span class="st">&quot;nmathopencl&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>idx <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">file.path</span>(nmath_dir, <span class="st">&quot;kernel_dependency_index.rds&quot;</span>))</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="fu">extract_library_subset</span>(</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>    <span class="at">kernel_paths =</span> <span class="fu">list.files</span>(<span class="st">&quot;inst/cl/mypkg_src&quot;</span>, <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.cl$&quot;</span>, <span class="at">full.names =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a>    <span class="at">library_dir  =</span> nmath_dir,</span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>    <span class="at">dest_dir     =</span> <span class="st">&quot;inst/cl/mypkg_nmath&quot;</span>,  <span class="co"># must exist</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>    <span class="at">depends_tag  =</span> <span class="st">&quot;depends_nmath&quot;</span>,</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>    <span class="at">index        =</span> idx</span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>)</span></code></pre></div></li>
+<li><p><strong>Write your kernel(s)</strong> — add
+<code>@library_deps</code>, <code>@calls_nmath</code>, and
+<code>@all_depends_nmath</code> tags at the top of each <code>.cl</code>
+file. Store them in <code>inst/cl/&lt;yourpkg_src&gt;/</code>.</p></li>
+<li><p><strong>Write a kernel runner</strong> — use
+<code>openclPort::opencl_dbl_scalar_kernel_runner</code> directly if
+your kernel fits the double-scalar layout, or write a custom runner
+following the same OpenCL lifecycle pattern as
+<code>f2_f3_kernel_runner</code>. Use
+<code>openclPort::opencl_make_context_error</code> and
+<code>opencl_status_name</code> for error handling.</p></li>
+<li><p><strong>Write a kernel wrapper</strong> — flatten your R inputs
+with <code>openclPort::flattenMatrix</code> /
+<code>openclPort::copyVector</code>, assemble the program string with
+<code>openclPort::load_library_for_kernel()</code> +
+<code>openclPort::load_kernel_source()</code>, call the runner, and
+return an R-friendly result. The <code>@depends_nmath</code> annotation
+in your kernel file drives the subset selection automatically.</p></li>
+<li><p><strong>Write a CPU fallback</strong> — implement the same
+computation using standard R math (<code>&lt;Rmath.h&gt;</code>) or
+base-R functions. Guard the GPU path with
+<code>nmathopencl_has_opencl()</code>.</p></li>
+<li><p><strong>Add <code>LinkingTo: nmathopencl</code></strong> to your
+<code>DESCRIPTION</code> file so that <code>openclPort.h</code> is found
+at compile time.</p></li>
+<li><p><strong>Add configure scripts for CRAN safety</strong> — this is
+the step most commonly overlooked.</p>
+<p>A package that references <code>-lOpenCL</code> or
+<code>CL/cl.h</code> in a static <code>src/Makevars</code> will
+<strong>fail to compile on CRAN’s build machines</strong> (which have no
+GPU SDK), and no binary will be produced. The solution is a pair of
+configure scripts (<code>configure</code> for Linux/macOS,
+<code>configure.win</code> for Windows) that <strong>generate
+<code>src/Makevars</code> dynamically at install time</strong>: if the
+SDK is found they write <code>-DUSE_OPENCL</code> and the link flags; if
+not they write a CPU-only Makevars. The package always compiles
+cleanly.</p>
+<p>Copy the generic templates into your package root with:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">use_opencl_configure</span>()</span></code></pre></div>
+<p>This writes <code>configure</code> and <code>configure.win</code> to
+the current directory, sets <code>configure</code> as executable (on
+Linux/macOS), and prints a checklist. The templates honor
+<code>OPENCL_HOME</code> / <code>OPENCL_SDK</code> environment variables
+so developers with non-standard SDK locations can point to them without
+modifying system paths.</p>
+<p>The three-entity relationship that the scripts establish:</p>
+<pre><code>configure / configure.win
+  -&gt; detects CL/cl.h + libOpenCL at install time
+  -&gt; writes -DUSE_OPENCL into Makevars   (or omits it for CPU-only)
+
+#ifdef USE_OPENCL  (in your C++ source)
+  -&gt; guards all GPU code; compiles cleanly either way
+
+nmathopencl_has_opencl()  (in your R code)
+  -&gt; calls a compiled-in bool that mirrors the compile-time decision
+  -&gt; TRUE only if -DUSE_OPENCL was set when the package was built</code></pre>
+<p>On Linux the <code>configure</code> script also runs a
+<strong>runtime probe</strong> (<code>clGetPlatformIDs</code>) before
+setting <code>USE_OPENCL</code>. This extra check catches the common
+case where the ICD loader (<code>libOpenCL.so</code>) is installed but
+no vendor platform has been registered in
+<code>/etc/OpenCL/vendors/</code>. <code>configure.win</code> (Windows)
+detects the header only; the ICD loader (<code>OpenCL.dll</code>) is
+installed with the GPU driver and does not require a separate probe.</p>
+<p>Add the generated files to <code>.gitignore</code> — they are build
+artifacts, not source files:</p>
+<pre><code>src/Makevars
+src/Makevars.win</code></pre>
+<p>For more detail, including the migration plan for when these
+templates move to <code>opencltools</code>, see
+<code>system.file(&quot;configure-templates&quot;, &quot;README.md&quot;, package = &quot;nmathopencl&quot;)</code>.</p></li>
+</ol>
+<p>The <code>ex_glmbayes</code> files are the authoritative reference
+implementation for steps 1–6; step 7 applies universally to any
+downstream package that exposes GPU acceleration.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

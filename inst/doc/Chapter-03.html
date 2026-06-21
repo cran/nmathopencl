@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-06-11" />
+
+<title>Chapter 03: Structure of nmath Kernel Programs</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter 03: Structure of nmath Kernel
+Programs</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-06-11</h4>
+
+
+
+<div id="why-programs-rather-than-compiled-objects" class="section level2">
+<h2>Why “programs” rather than compiled objects</h2>
+<p>Normal C++ code in an R package is compiled ahead of time by the
+package build toolchain and linked into a DLL/<code>.so</code>. OpenCL
+device code works differently: the GPU source is compiled <strong>at
+runtime</strong>, on the device, by the GPU driver. This means there is
+no offline linker for device code — all GPU code that will run together
+must be collected into a single source string before the driver sees
+it.</p>
+<p>In OpenCL terms, that string is a <strong>program</strong>. The C++
+call sequence is:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co">// kernel_source is one big string containing all device code</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>program <span class="op">=</span> clCreateProgramWithSource<span class="op">(</span>context<span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="op">&amp;</span>src_ptr<span class="op">,</span> <span class="op">&amp;</span>src_len<span class="op">,</span> <span class="op">&amp;</span>status<span class="op">);</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>clBuildProgram<span class="op">(</span>program<span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="kw">nullptr</span><span class="op">,</span> <span class="kw">nullptr</span><span class="op">,</span> <span class="kw">nullptr</span><span class="op">,</span> <span class="kw">nullptr</span><span class="op">);</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a>kernel  <span class="op">=</span> clCreateKernel<span class="op">(</span>program<span class="op">,</span> <span class="st">&quot;dnorm_kernel&quot;</span><span class="op">,</span> <span class="op">&amp;</span>status<span class="op">);</span></span></code></pre></div>
+<p><code>clBuildProgram</code> invokes the vendor GPU compiler on
+<code>kernel_source</code> and produces a device binary. A build failure
+here is equivalent to a C++ compilation error, except it happens at the
+moment of first use, not at <code>R CMD INSTALL</code> time.</p>
+</div>
+<div id="no-include-on-the-device" class="section level2">
+<h2>No <code>#include</code> on the device</h2>
+<p>OpenCL C is a restricted dialect of C99. There is no file system
+visible to device code: <code>#include</code> is simply not available
+inside an OpenCL program string. Every declaration or definition that a
+kernel function needs must appear <strong>earlier in the same
+string</strong>.</p>
+<p>This creates the fundamental porting challenge for
+<code>nmathopencl</code>. R’s <code>nmath</code> library is written as
+standard C99 and relies on a chain of <code>#include</code>
+directives:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;nmath.h&quot;</span><span class="pp">       </span><span class="co">/* includes R_ext/Arith.h, R_ext/Error.h, ... */</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;dpq.h&quot;</span></span></code></pre></div>
+<p>Those headers pull in standard C types (<code>FILE*</code>,
+<code>size_t</code>, <code>int32_t</code>), R-specific runtime types
+(<code>SEXP</code>, <code>Rboolean</code>), and R callbacks
+(<code>error()</code>, <code>warning()</code>, <code>R_alloc()</code>).
+None of these concepts exist on a GPU.</p>
+<p>The solution is to assemble the program string in layers, prepending
+OpenCL-compatible replacements for everything the nmath sources expect
+to find via <code>#include</code>.</p>
+</div>
+<div id="the-four-layer-program-structure" class="section level2">
+<h2>The four-layer program structure</h2>
+<p>A complete <code>nmathopencl</code> kernel program is a concatenation
+of four layers:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│  Layer 0 – OPENCL.cl                                         │
+│  Global configuration: fp64 pragma, HAVE_* macros, ML_NAN   │
+├─────────────────────────────────────────────────────────────┤
+│  Layer 1 – Upstream shims  (inst/cl/R_ext_types/, R_shims/, │
+│                              R_ext_runtime/, System/, ...)   │
+│  OpenCL-C replacements for C headers the nmath sources need  │
+├─────────────────────────────────────────────────────────────┤
+│  Layer 2 – nmath library  (inst/cl/nmath/)                   │
+│  The ported Mathlib functions, exactly the subset required   │
+│  by this kernel (determined by @all_depends_nmath)           │
+├─────────────────────────────────────────────────────────────┤
+│  Layer 3 – Kernel function  (inst/cl/src/)                   │
+│  The __kernel entry point: GPU-parallel version of a CPU     │
+│  loop over the nmath function                                │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+<p>Each layer is a plain text block that is physically concatenated (in
+order) to form the final string passed to
+<code>clCreateProgramWithSource</code>.</p>
+</div>
+<div id="layer-0-opencl.cl-the-global-configuration-header" class="section level2">
+<h2>Layer 0: <code>OPENCL.cl</code> — the global configuration
+header</h2>
+<p><code>inst/cl/OPENCL.cl</code> is always placed at the very top. It
+sets the conditions under which the rest of the program will
+compile:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="pp">#pragma OPENCL EXTENSION cl_khr_fp64 : enable   </span><span class="co">/* require 64-bit floats */</span></span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">/* Enable expm1/log1p built-ins on OpenCL &gt;= 1.2 */</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="pp">#if defined(__OPENCL_C_VERSION__) &amp;&amp; (__OPENCL_C_VERSION__ &gt;= 120)</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="pp">#define HAVE_EXPM1 </span><span class="dv">1</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="pp">#define HAVE_LOG1P </span><span class="dv">1</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="pp">#endif</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="pp">#undef HAVE_LONG_DOUBLE      </span><span class="co">/* no long double on GPU */</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="pp">#define ML_NAN   </span><span class="op">(</span><span class="fl">0.0</span><span class="op">/</span><span class="fl">0.0</span><span class="op">)</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="pp">#define ML_POSINF INFINITY</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="pp">#define ML_NEGINF </span><span class="op">-</span><span class="pp">INFINITY</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="pp">#define INLINE </span><span class="dt">static</span><span class="pp"> </span><span class="kw">inline</span></span></code></pre></div>
+<p>This one file handles the biggest portability concern:
+double-precision support (<code>cl_khr_fp64</code>) must be declared
+before any <code>double</code> variable appears in device code, and the
+<code>HAVE_*</code> macros tell the nmath sources which C99 math
+built-ins are available.</p>
+</div>
+<div id="layer-1-the-upstream-shim-layer" class="section level2">
+<h2>Layer 1: The upstream shim layer</h2>
+<p>R’s nmath sources transitively include a long chain of headers. The
+shim layer provides OpenCL C replacements, grouped by what they
+replace:</p>
+<div id="type-stubs" class="section level3">
+<h3>Type stubs</h3>
+<table>
+<colgroup>
+<col width="26%" />
+<col width="73%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Files</th>
+<th>What they replace</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>System/stdint.cl</code></td>
+<td><code>&lt;stdint.h&gt;</code>: <code>int32_t</code>,
+<code>uint64_t</code>, … using OpenCL built-in integer types</td>
+</tr>
+<tr class="even">
+<td><code>R_ext_types/Boolean.cl</code>, <code>Complex.cl</code>,
+<code>Constants.cl</code>, etc.</td>
+<td>Type-only parts of <code>&lt;R_ext/Boolean.h&gt;</code>,
+<code>&lt;R_ext/Complex.h&gt;</code>, etc.</td>
+</tr>
+<tr class="odd">
+<td><code>R_shims/Rinternals.cl</code></td>
+<td>Skeletal <code>SEXP</code>, <code>SEXPREC</code>,
+<code>Rboolean</code> so transitively included headers compile</td>
+</tr>
+</tbody>
+</table>
+<p>None of these types are <em>used</em> by the nmath math logic; the
+stubs exist so the preprocessor does not abort on an unrecognized
+identifier.</p>
+</div>
+<div id="capability-macros" class="section level3">
+<h3>Capability macros</h3>
+<p><code>R_shims/Rconfig.cl</code> reproduces what R’s
+<code>configure</code> script writes into <code>config.h</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="pp">#define HAVE_EXPM1 </span><span class="dv">1</span></span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="pp">#define HAVE_LOG1P </span><span class="dv">1</span></span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="pp">#define IEEE_754   </span><span class="dv">1</span></span></code></pre></div>
+<p>Without this, conditional compilation branches inside nmath would
+take the wrong path (e.g., falling back to a Taylor series instead of
+calling the built-in <code>expm1</code>).</p>
+</div>
+<div id="runtime-no-ops" class="section level3">
+<h3>Runtime no-ops</h3>
+<p>R’s <code>error()</code> and <code>warning()</code> are host-side
+callbacks that <code>longjmp</code> into the R runtime — they cannot
+exist on the GPU. <code>R_ext_runtime/Error.cl</code> replaces them with
+silent macros:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="pp">#define error</span><span class="op">(...)</span><span class="pp">   </span><span class="co">/* no-op */</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="pp">#define warning</span><span class="op">(...)</span><span class="pp"> </span><span class="co">/* no-op */</span></span></code></pre></div>
+<p>Similarly, <code>R_ext_runtime/Memory.cl</code> stubs
+<code>R_alloc()</code> and friends (nmath’s hot paths do not actually
+allocate, so these stubs satisfy the preprocessor without ever
+executing), and <code>R_ext_runtime/Print.cl</code> stubs
+<code>Rprintf</code>.</p>
+</div>
+<div id="math-declarations" class="section level3">
+<h3>Math declarations</h3>
+<p><code>R_ext_runtime/Arith.cl</code> is the most actively
+<em>used</em> shim. It maps R’s numeric predicates to their OpenCL
+equivalents:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="pp">#define R_FINITE</span><span class="op">(</span><span class="pp">x</span><span class="op">)</span><span class="pp">  isfinite</span><span class="op">(</span><span class="pp">x</span><span class="op">)</span></span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="pp">#define ISNAN</span><span class="op">(</span><span class="pp">x</span><span class="op">)</span><span class="pp">     isnan</span><span class="op">(</span><span class="pp">x</span><span class="op">)</span></span></code></pre></div>
+<p><code>nmath/Rmath.cl</code> and <code>nmath/nmath.cl</code> close out
+the shim layer by providing the forward declarations, mathematical
+constants, and error-code macros that the nmath function files expect to
+find in <code>Rmath.h</code> / <code>nmath.h</code>.</p>
+</div>
+<div id="the-design-principle" class="section level3">
+<h3>The design principle</h3>
+<p>Every shim is <strong>minimally intrusive</strong>: it defines only
+what the nmath math logic actually needs, and stubs or silences
+everything else. The goal is that the nmath <code>.cl</code> files are
+as close to verbatim copies of the C sources as possible; the shims
+carry all the differences.</p>
+</div>
+</div>
+<div id="layer-2-the-nmath-library-and-its-annotation-scheme" class="section level2">
+<h2>Layer 2: The nmath library and its annotation scheme</h2>
+<p><code>inst/cl/nmath/</code> contains approximately 180
+<code>.cl</code> files, one per source file in R’s
+<code>src/nmath/</code>. They implement the full suite of Mathlib
+functions in OpenCL C.</p>
+<div id="provides-and-depends-annotations" class="section level3">
+<h3><code>@provides</code> and <code>@depends</code> annotations</h3>
+<p>Because the program is assembled at runtime, the loader must know the
+correct concatenation order. Each nmath file declares what it provides
+and what it depends on:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="co">// From inst/cl/nmath/dnorm.cl</span></span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co">// @source_origin: dnorm.c</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">// @depends:  nmath, dpq</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">// @provides: dnorm, dnorm4</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">// @all_depends: dpq, Rmath, nmath</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">// @load_order: 31</span></span></code></pre></div>
+<p><code>opencltools::load_kernel_library()</code> reads these tags,
+builds a dependency graph, and performs a topological sort — files with
+no unsatisfied dependencies are emitted first, then files whose
+dependencies have been emitted, and so on. The result is a load order in
+which every function is declared before it is called.</p>
+</div>
+<div id="only-the-required-subset-is-loaded" class="section level3">
+<h3>Only the required subset is loaded</h3>
+<p>A kernel that calls <code>dnorm</code> needs only 4 nmath files. A
+kernel that calls <code>dbinom</code> needs 18. Loading all ~180 files
+for every kernel would be wasteful and slow to compile. Instead, each
+kernel file carries a pre-computed <code>@all_depends_nmath</code>
+annotation listing the exact transitive closure:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co">// dnorm_kernel.cl  -- needs 4 files</span></span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">// @all_depends_nmath: dpq, Rmath, nmath, dnorm</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">// dbinom_kernel.cl -- needs 18 files</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">// @all_depends_nmath: dpq, refactored, Rmath, nmath, stirlerr_cycle_free,</span></span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a><span class="co">//   chebyshev, cospi, fmax2, gammalims, lgammacor, log1p, gamma, lgamma,</span></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="co">//   pgamma_utils, stirlerr_cycle_dependent, bd0, stirlerr, dbinom</span></span></code></pre></div>
+<p><code>load_library_for_kernel()</code> reads
+<code>@all_depends_nmath</code>, looks up each stem in a pre-built index
+(<code>kernel_dependency_index.tsv</code>) to get the global load order,
+and concatenates exactly those files in the correct sequence. No
+topological sort is computed at install time — the sort was done once
+when the index was built.</p>
+</div>
+</div>
+<div id="layer-3-the-kernel-function" class="section level2">
+<h2>Layer 3: The kernel function</h2>
+<p>The <code>__kernel</code> function is the entry point that the GPU
+driver exposes. Conceptually it is a <strong>GPU-parallel version of a
+CPU <code>for</code> loop</strong>:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode c"><code class="sourceCode c"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co">/* CPU equivalent:</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="co">   for (int i = 0; i &lt; n; i++) out[i] = dnorm(x[i], mu[i], sigma[i], gl); */</span></span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>__kernel <span class="dt">void</span> dnorm_kernel<span class="op">(</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> x<span class="op">,</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> mu<span class="op">,</span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">double</span><span class="op">*</span> sigma<span class="op">,</span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>    __global <span class="dt">const</span> <span class="dt">int</span><span class="op">*</span>    give_log<span class="op">,</span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>    __global <span class="dt">double</span><span class="op">*</span>       out<span class="op">,</span></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>    <span class="dt">const</span> <span class="dt">int</span>              len</span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="op">)</span> <span class="op">{</span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>    <span class="dt">int</span> i <span class="op">=</span> get_global_id<span class="op">(</span><span class="dv">0</span><span class="op">);</span>    <span class="co">/* this work-item handles element i */</span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">(</span>i <span class="op">&gt;=</span> len<span class="op">)</span> <span class="cf">return</span><span class="op">;</span></span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>    <span class="dt">int</span> gl <span class="op">=</span> <span class="op">(</span>give_log<span class="op">[</span>i<span class="op">]</span> <span class="op">!=</span> <span class="dv">0</span><span class="op">)</span> <span class="op">?</span> <span class="dv">1</span> <span class="op">:</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>    out<span class="op">[</span>i<span class="op">]</span> <span class="op">=</span> dnorm<span class="op">(</span>x<span class="op">[</span>i<span class="op">],</span> mu<span class="op">[</span>i<span class="op">],</span> sigma<span class="op">[</span>i<span class="op">],</span> gl<span class="op">);</span>   <span class="co">/* same nmath call */</span></span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><code>get_global_id(0)</code> returns the index of the current
+work-item in the first dimension of the work grid. The host launches
+exactly <code>n</code> work-items so each element of the input vector is
+handled by one work-item in parallel.</p>
+<p>The kernel calls <code>dnorm</code> — the same function name as in
+the C source. All the layers below it (shims + nmath files) ensure that
+<code>dnorm</code> is defined and reachable in the same program
+string.</p>
+</div>
+<div id="assembling-the-program-in-c" class="section level2">
+<h2>Assembling the program in C++</h2>
+<p><code>build_rmath_opencl_program()</code> in
+<code>src/kernel_loader.cpp</code> shows precisely how the four layers
+are concatenated:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="bu">std::</span>string build_rmath_opencl_program<span class="op">(</span></span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>string<span class="op">&amp;</span> kernel_relative_path<span class="op">,</span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>string<span class="op">&amp;</span> package<span class="op">,</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>    <span class="at">const</span> <span class="bu">std::</span>string<span class="op">&amp;</span> nmath_depends_annotation<span class="op">)</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>  <span class="co">// Load exactly the nmath subset this kernel needs (via @all_depends_nmath)</span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>  <span class="at">const</span> <span class="bu">std::</span>string nmath_src <span class="op">=</span> load_library_for_kernel<span class="op">(</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>      kernel_relative_path<span class="op">,</span> <span class="st">&quot;nmath&quot;</span><span class="op">,</span> package<span class="op">,</span> nmath_depends_annotation<span class="op">);</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a>  <span class="cf">return</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>    load_kernel_source<span class="op">(</span><span class="st">&quot;OPENCL.cl&quot;</span><span class="op">,</span>      package<span class="op">)</span>        <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>  <span class="co">// Layer 0</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>    <span class="op">+</span> load_kernel_library<span class="op">(</span><span class="st">&quot;libR_shims&quot;</span><span class="op">,</span>  package<span class="op">,</span> <span class="kw">false</span><span class="op">)</span> <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>  <span class="co">// Layer 1</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a>    <span class="op">+</span> load_kernel_library<span class="op">(</span><span class="st">&quot;R_ext_types&quot;</span><span class="op">,</span> package<span class="op">,</span> <span class="kw">false</span><span class="op">)</span> <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span></span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>    <span class="op">+</span> load_kernel_library<span class="op">(</span><span class="st">&quot;R_shims&quot;</span><span class="op">,</span>     package<span class="op">,</span> <span class="kw">false</span><span class="op">)</span> <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span></span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a>    <span class="op">+</span> load_kernel_library<span class="op">(</span><span class="st">&quot;R_ext_runtime&quot;</span><span class="op">,</span> package<span class="op">,</span> <span class="kw">false</span><span class="op">)</span> <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span></span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a>    <span class="op">+</span> load_kernel_library<span class="op">(</span><span class="st">&quot;R_ext_internals&quot;</span><span class="op">,</span> package<span class="op">,</span> <span class="kw">false</span><span class="op">)</span> <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span></span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a>    <span class="op">+</span> load_kernel_library<span class="op">(</span><span class="st">&quot;System&quot;</span><span class="op">,</span>      package<span class="op">,</span> <span class="kw">false</span><span class="op">)</span> <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span></span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a>    <span class="op">+</span> nmath_src                                          <span class="op">+</span> <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>  <span class="co">// Layer 2</span></span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a>    <span class="op">+</span> load_kernel_source<span class="op">(</span>kernel_relative_path<span class="op">,</span> package<span class="op">);</span>         <span class="co">// Layer 3</span></span>
+<span id="cb11-20"><a href="#cb11-20" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>The returned string is passed directly to
+<code>clCreateProgramWithSource</code> and then compiled by the device
+driver. At that point the GPU can execute the kernel function.</p>
+<p>Note the dual guard: each loader function itself is compiled to a
+no-op when <code>USE_OPENCL</code> is absent (see Chapter 02), so
+<code>build_rmath_opencl_program</code> is always callable but returns
+an empty string on CPU-only builds. Callers check
+<code>nmathopencl_has_opencl()</code> before dispatching to the GPU
+path.</p>
+</div>
+<div id="what-this-means-for-downstream-developers" class="section level2">
+<h2>What this means for downstream developers</h2>
+<p>A downstream package that builds on <code>nmathopencl</code> does not
+need to replicate this assembly machinery. Kernel text loading uses
+<strong>opencltools</strong> (<code>load_kernel_source</code>,
+<code>load_kernel_library</code> with
+<code>package = &quot;nmathopencl&quot;</code>).
+<code>load_library_for_kernel</code> is re-exported from
+<strong>nmathopencl</strong> (and available via
+<code>LinkingTo: nmathopencl</code>) and handles all of layers 0, 1, and
+2 automatically.</p>
+<p>The downstream developer’s responsibilities are:</p>
+<ol style="list-style-type: decimal">
+<li><strong>Write the <code>__kernel</code> function</strong> (Layer 3):
+call the nmath functions your computation needs.</li>
+<li><strong>Annotate it</strong> with <code>@depends_nmath</code> and
+<code>@all_depends_nmath</code> so the loader knows which nmath subset
+to pull in.</li>
+<li><strong>Write the C++ runner</strong> that calls
+<code>build_rmath_opencl_program()</code> (or the equivalent chain),
+dispatches work-items, and transfers results.</li>
+</ol>
+<p>Chapter 07 covers how to write and annotate kernel functions. Chapter
+10 walks through all three steps end-to-end for the
+<code>ex_glmbayes</code> example.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Kjell Nygren" />
+
+<meta name="date" content="2026-06-11" />
+
+<title>Chapter 00: nmathopencl — Package Overview</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Chapter 00: nmathopencl — Package
+Overview</h1>
+<h4 class="author">Kjell Nygren</h4>
+<h4 class="date">2026-06-11</h4>
+
+
+
+<div id="what-is-nmathopencl" class="section level2">
+<h2>What is <code>nmathopencl</code>?</h2>
+<p><code>nmathopencl</code> is a <strong>developer library</strong>: it
+ports R’s internal <code>nmath</code> (Mathlib) statistical math
+functions to OpenCL so that downstream R packages can embed those
+functions inside their own custom GPU kernels. The primary audience is
+<strong>package authors</strong> who want GPU-accelerated computation
+and need statistical math functions available on the device side —
+without having to port the underlying nmath sources themselves.</p>
+<p>A secondary audience is <strong>end users</strong> who want to call
+distribution functions (<code>dnorm</code>, <code>pgamma</code>,
+<code>rbinom</code>, …) directly on GPU hardware. The package exports
+<code>*_opencl</code> wrappers for the full nmath family, but their main
+role is <strong>validation</strong>: running them on large vectors
+confirms that the OpenCL pipeline and GPU hardware are working before a
+downstream package is built. For modest vector sizes the GPU often
+performs no better than the CPU, because the cost of kernel compilation
+and host-to-device data transfer dominates. Meaningful GPU acceleration
+of individual nmath calls requires very large workloads.</p>
+<p>The real performance story is at the downstream package level. When
+nmath calls are embedded <em>inside</em> larger GPU kernels — alongside
+other expensive device-side operations such as the gradient and envelope
+calculations in <code>glmbayes</code> — the GPU does the computation
+without the round-trip transfer penalty, and substantial gains become
+possible. The design here supports that pattern; the exported
+<code>*_opencl</code> functions demonstrate it works.</p>
+<p>OpenCL is vendor-neutral: the same kernels run on NVIDIA, AMD, and
+Intel hardware. CPU-only execution is always supported when no OpenCL
+stack is present, so the package is safe to list as a dependency even in
+environments that lack a GPU.</p>
+</div>
+<div id="three-layer-architecture" class="section level2">
+<h2>Three-layer architecture</h2>
+<p>The package is organized in three layers, each corresponding to a set
+of vignettes:</p>
+<pre><code>????????????????????????????????????????????????
+|  Layer 3 --- Kernels  (inst/cl/src/)           |
+|  __kernel functions for the R-callable API   |
+????????????????????????????????????????????????
+|  Layer 2 --- nmath library  (inst/cl/nmath/)   |
+|  Ported nmath/Rmath functions as device-side |
+|  OpenCL C functions                          |
+????????????????????????????????????????????????
+|  Layer 1 --- Upstream shims                    |
+|  (inst/cl/R_shims/, R_ext/, System/, ...)      |
+|  Type definitions, macros, and constants     |
+|  that replace C headers unavailable in       |
+|  OpenCL C                                    |
+????????????????????????????????????????????????</code></pre>
+<p>Layer 1 is the foundation: it makes the rest of the ported code
+compile under OpenCL’s restricted C99 dialect without modification to
+the nmath sources. Layer 2 is the library: ~180 <code>.cl</code> files
+implementing the full suite of Mathlib functions. Layer 3 is the API
+surface: thin wrapper kernels that map a GPU work-item index to an
+element of an input vector and call the appropriate Layer 2
+function.</p>
+<p>Downstream packages locate the Layer 2 sources at runtime with
+<code>system.file(&quot;cl&quot;, package = &quot;nmathopencl&quot;)</code> and assemble
+them into their own OpenCL programs using
+<code>opencltools::load_kernel_library(..., package = &quot;nmathopencl&quot;)</code>.
+They own the kernel runners, R wrappers, and compilation lifecycle;
+<code>nmathopencl</code> simply provides the portable math library they
+build on.</p>
+<p>See <strong>Chapter 03</strong> for the detailed assembly model,
+including how the four components of a complete kernel program (global
+configuration header, shims, nmath subset, and kernel function) are
+concatenated and compiled at runtime.</p>
+</div>
+<div id="c-layout-inside-the-package-dll" class="section level2">
+<h2>C++ layout inside the package DLL</h2>
+<table>
+<colgroup>
+<col width="26%" />
+<col width="38%" />
+<col width="34%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Layer</th>
+<th>Location</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><code>nmathopencl</code></strong></td>
+<td><code>nmathopencl.h</code>, <code>kernel_runners.cpp</code>,
+<code>kernel_wrappers.cpp</code></td>
+<td>Distribution-specific kernel runners and R-facing wrappers for all
+nmath functions</td>
+</tr>
+<tr class="even">
+<td><strong>Internal OpenCL infrastructure</strong></td>
+<td><code>openclPort.h</code>,
+<code>opencl_kernel_runners.cpp</code></td>
+<td>Generic kernel runner, error helpers, device probing, and kernel
+loading inside the DLL — see <strong>Chapter 09</strong></td>
+</tr>
+<tr class="odd">
+<td><strong><code>ex_glmbayes</code></strong></td>
+<td><code>ex_glmbayes_*.cpp/.h</code></td>
+<td>Self-contained example showing how a downstream package
+(<code>glmbayes</code>) builds custom GLM kernels on top of the layers
+above</td>
+</tr>
+</tbody>
+</table>
+<p>Kernel authors who <code>LinkingTo: nmathopencl</code> may include
+<code>openclPort.h</code> directly; the internal runner layer is
+documented in Chapter 09.</p>
+</div>
+<div id="related-packages" class="section level2">
+<h2>Related packages</h2>
+<p><code>nmathopencl</code> is part of a small suite of cooperating
+packages:</p>
+<table>
+<colgroup>
+<col width="24%" />
+<col width="16%" />
+<col width="59%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Package</th>
+<th>Role</th>
+<th>Typical entry points</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><code>nmathopencl</code></strong> (this package)</td>
+<td>OpenCL-ported Mathlib, <code>*_opencl</code> validation API, kernel
+loaders, package-local device selection</td>
+<td><code>nmathopencl_has_opencl()</code>, <code>load_kernel_*</code>,
+<code>dnorm_opencl()</code></td>
+</tr>
+<tr class="even">
+<td><strong><code>opencltools</code></strong> (<a href="https://CRAN.R-project.org/package=opencltools">CRAN</a>)</td>
+<td>Host/runtime diagnostics and kernel-library authoring tools</td>
+<td><code>detect_environment_and_gpus()</code>,
+<code>verify_opencl_runtime()</code>,
+<code>load_library_for_kernel()</code>, <code>diagnose_glmbayes()</code>
+(opencltools-only report)</td>
+</tr>
+<tr class="odd">
+<td><strong><code>glmbayes</code></strong> (<a href="https://CRAN.R-project.org/package=glmbayes">CRAN</a>)</td>
+<td>End-user Bayesian GLMs with optional GPU paths</td>
+<td><code>glmb()</code>, <code>use_opencl = TRUE</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong><code>nmathopencl</code> Imports <code>opencltools</code>
+(&gt;= 0.8.0).</strong> Host inventory, driver/ICD checks, and PATH
+validation are delegated to <strong>opencltools</strong>; compile-time
+OpenCL status for <strong>this</strong> package’s DLL stays local via
+<strong><code>nmathopencl_has_opencl()</code></strong>. Host/runtime
+probes (<code>detect_*</code>, PATH helpers, <code>gpu_names</code>, and
+related functions) are <strong>not</strong> re-exported from
+<strong>nmathopencl</strong> — call <code>opencltools::…</code>
+directly. Kernel-library authoring helpers
+(<code>load_library_for_kernel</code>,
+<code>extract_library_subset</code>, and related tagging tools) are
+re-exported for downstream kernel authors.</p>
+<p>For OpenCL setup and enablement, start with <strong>Chapter
+01</strong> (attach messages and the nmathopencl-specific enablement
+path) and <strong><code>opencltools</code></strong> vignette
+<strong>Chapter 01</strong> (platform install details).</p>
+</div>
+<div id="r-side-api-families" class="section level2">
+<h2>R-side API families</h2>
+<p>The exported <code>*_opencl</code> functions cover the full nmath
+family and mirror the structure of base R’s <code>stats</code>
+package:</p>
+<table>
+<colgroup>
+<col width="42%" />
+<col width="57%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>R file</th>
+<th>Functions</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>normal_opencl.R</code></td>
+<td><code>dnorm_opencl</code>, <code>pnorm_opencl</code>,
+<code>qnorm_opencl</code>, <code>rnorm_opencl</code></td>
+</tr>
+<tr class="even">
+<td><code>gamma_opencl.R</code></td>
+<td><code>dgamma_opencl</code>, <code>pgamma_opencl</code>, …</td>
+</tr>
+<tr class="odd">
+<td><code>binomial_opencl.R</code></td>
+<td><code>dbinom_opencl</code>, <code>pbinom_opencl</code>, …</td>
+</tr>
+<tr class="even">
+<td><code>poisson_opencl.R</code></td>
+<td><code>dpois_opencl</code>, <code>ppois_opencl</code>, …</td>
+</tr>
+<tr class="odd">
+<td><code>beta_opencl.R</code></td>
+<td><code>dbeta_opencl</code>, …</td>
+</tr>
+<tr class="even">
+<td>…</td>
+<td>(and so on for all families)</td>
+</tr>
+<tr class="odd">
+<td><code>special_opencl.R</code></td>
+<td><code>lgammafn_opencl</code>, <code>gammafn_opencl</code>, …</td>
+</tr>
+<tr class="even">
+<td><code>math_support_opencl.R</code></td>
+<td><code>fmax2_opencl</code>, <code>fmin2_opencl</code>, …</td>
+</tr>
+</tbody>
+</table>
+<p>Every function accepts a scalar parameter set, dispatches to the GPU
+via the kernel infrastructure, and falls back to the corresponding
+<code>stats::</code> or base-R function if OpenCL is unavailable or if
+the call fails. As noted above, these wrappers serve primarily as a
+working demonstration of the GPU pipeline; they can show speedups at
+very large vector sizes but are not the primary mechanism through which
+downstream packages obtain GPU acceleration.</p>
+</div>
+<div id="checking-opencl-availability" class="section level2">
+<h2>Checking OpenCL availability</h2>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(nmathopencl)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># Compile-time OpenCL support in this nmathopencl build</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="fu">nmathopencl_has_opencl</span>()</span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co"># Same check for the imported opencltools dependency</span></span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">has_opencl</span>()</span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a><span class="co"># Host/runtime diagnostic report (opencltools)</span></span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>opencltools<span class="sc">::</span><span class="fu">diagnose_glmbayes</span>()</span></code></pre></div>
+<ul>
+<li><strong><code>nmathopencl_has_opencl()</code></strong> (nmathopencl)
+— was <strong>this</strong> package built with OpenCL
+(<code>-DUSE_OPENCL</code>)?</li>
+<li><strong><code>opencltools::has_opencl()</code></strong> — was the
+imported dependency built with OpenCL?</li>
+<li><strong><code>opencltools::diagnose_glmbayes()</code></strong> —
+host/runtime report from <strong>opencltools</strong>.</li>
+</ul>
+<p>Host and driver inventory
+(<code>detect_environment_and_gpus()</code>,
+<code>verify_opencl_runtime()</code>, and related probes) live in
+<strong><code>opencltools</code></strong> — use
+<code>opencltools::…</code> when calling them directly. All exported
+<code>*_opencl</code> wrappers branch on
+<code>nmathopencl_has_opencl()</code> first; the <code>fallback</code>
+argument then controls whether a failed OpenCL call is replaced with the
+CPU path (ignored when OpenCL is absent at compile time).</p>
+<p>See <strong>Chapter 01</strong> for the step-by-step enablement path
+(attach messages, opencltools first, then source reinstall of
+nmathopencl).</p>
+</div>
+<div id="vignette-guide" class="section level2">
+<h2>Vignette guide</h2>
+<p><strong>Part 0: Overview</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Vignette</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Chapter 00 (this document)</td>
+<td>Package overview and architecture</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Part I: Getting Started</strong></p>
+<table>
+<colgroup>
+<col width="58%" />
+<col width="41%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Vignette</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Chapter 01</td>
+<td>OpenCL enablement for <code>nmathopencl</code> (attach messages,
+<code>opencltools</code> dependency, source reinstall)</td>
+</tr>
+<tr class="even">
+<td>Chapter 02</td>
+<td>Adding <code>USE_OPENCL</code> and <code>has_opencl()</code> to your
+package: <code>configure</code> scripts, <code>opencltools</code>
+runtime relationship</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Part II: The Library and Program Model</strong></p>
+<table>
+<colgroup>
+<col width="58%" />
+<col width="41%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Vignette</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Chapter 03</td>
+<td>Structure of <code>nmath</code> kernel programs: the four-layer
+assembly model</td>
+</tr>
+<tr class="even">
+<td>Chapter 04</td>
+<td>The <code>nmath</code> OpenCL library (<code>inst/cl/nmath/</code>):
+cycles, shims, and annotation</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Part III: Developer Guide</strong></p>
+<table>
+<colgroup>
+<col width="58%" />
+<col width="41%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Vignette</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Chapter 05</td>
+<td>Kernels, kernel runners, and kernel wrappers: roles and
+interaction</td>
+</tr>
+<tr class="even">
+<td>Chapter 06</td>
+<td>Integrating kernel wrappers into your codebase: CPU fallbacks and R
+interfaces</td>
+</tr>
+<tr class="odd">
+<td>Chapter 07</td>
+<td>Writing and annotating <code>__kernel</code> functions</td>
+</tr>
+<tr class="even">
+<td>Chapter 08</td>
+<td>Kernel loading: <code>load_kernel_source</code> and
+<code>load_kernel_library</code></td>
+</tr>
+<tr class="odd">
+<td>Chapter 09</td>
+<td>Generic OpenCL kernel runners: the <code>openclPort</code> C++
+infrastructure</td>
+</tr>
+<tr class="even">
+<td>Chapter 10</td>
+<td>Case study: building custom GLM kernels
+(<code>ex_glmbayes</code>)</td>
+</tr>
+<tr class="odd">
+<td>Chapter 11</td>
+<td>Testing, debugging, and benchmarking GPU kernels</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Part IV: The R API</strong></p>
+<table>
+<colgroup>
+<col width="58%" />
+<col width="41%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Vignette</th>
+<th>Topic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Chapter 12</td>
+<td>The <code>nmathopencl</code> R API: distribution functions on the
+GPU</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
