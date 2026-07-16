@@ -1,8 +1,8 @@
 Package: nmathopencl
 Type: Package
 Title: 'OpenCL'-Ported R 'Mathlib' for GPU-Accelerated Packages
-Version: 0.8.2
-Date: 2026-06-11
+Version: 0.8.3
+Date: 2026-07-15
 Authors@R: c(
     person("Kjell", "Nygren", role = c("aut", "cre"),
            email = "kjell.a.nygren@gmail.com"),
@@ -51,11 +51,11 @@ URL: https://github.com/knygren/nmathopencl,
         https://knygren.r-universe.dev/nmathopencl
 BugReports: https://github.com/knygren/nmathopencl/issues
 Imports: stats, Rcpp (>= 1.1.1), RcppParallel, Rdpack (>= 0.11-0),
-        opencltools (>= 0.8.1)
+        opencltools (>= 0.8.2)
 RdMacros: Rdpack
 LinkingTo: Rcpp, RcppArmadillo, RcppParallel, opencltools
 Depends: MASS, R (>= 3.5.0)
-Suggests: glmbayes (>= 0.9.3), knitr, rmarkdown, testthat (>= 3.0.0),
+Suggests: glmbayes (>= 0.9.6), knitr, rmarkdown, testthat (>= 3.0.0),
         spelling
 SystemRequirements: Optional 'OpenCL' support. If available, GPU
         acceleration will be used; otherwise, computation runs on CPU.
@@ -65,7 +65,7 @@ VignetteBuilder: knitr
 Config/testthat/edition: 3
 Language: en-US
 NeedsCompilation: yes
-Packaged: 2026-06-12 00:12:40 UTC; kjell
+Packaged: 2026-07-15 23:34:36 UTC; kjell
 Author: Kjell Nygren [aut, cre],
   The R Core Team [ctb, cph] (R 'Mathlib' sources and derived/adapted
     routines),
@@ -89,4 +89,4 @@ Author: Kjell Nygren [aut, cre],
     (Apache License 2.0))
 Maintainer: Kjell Nygren <kjell.a.nygren@gmail.com>
 Repository: CRAN
-Date/Publication: 2026-06-21 15:20:08 UTC
+Date/Publication: 2026-07-16 00:00:02 UTC
